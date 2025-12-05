@@ -1,0 +1,254 @@
+# MarketEye 📈
+
+**24/7 Investment Watcher** - Monitor markets and assets with intelligent alerts via SMS, calls, push notifications, and email.
+
+## 🚀 Features
+
+- 📊 Real-time market monitoring (Stocks, ETFs, Crypto, Mutual Funds)
+- 🔔 Smart alerts with customizable conditions (price, %, volume, portfolio-level)
+- 📱 Multi-channel notifications (SMS, Call, Push, Email)
+- 💼 Virtual portfolio tracking with P&L analytics
+- 🎨 Futuristic dark-themed UI with smooth animations
+- 🔒 Secure authentication with JWT
+- 🌙 Quiet hours and notification preferences
+- 📈 Live charts with technical indicators
+
+## 🛠️ Tech Stack
+
+### Backend
+- **FastAPI** - High-performance Python web framework
+- **PostgreSQL** - Relational database
+- **Redis** - Caching and message broker
+- **SQLAlchemy** - ORM with async support
+- **Celery** - Background task processing
+- **WebSockets** - Real-time updates
+
+### Frontend
+- **React + TypeScript** - Type-safe UI development
+- **Vite** - Lightning-fast build tool
+- **TailwindCSS** - Utility-first CSS framework
+- **Framer Motion** - Beautiful animations
+- **shadcn/ui** - High-quality component library
+- **Lightweight Charts** - Professional financial charts
+
+### Market Data (Free APIs)
+- **yfinance** - Yahoo Finance (stocks, ETFs, indices)
+- **CoinGecko** - Cryptocurrency data
+- **Alpha Vantage** - Backup market data
+
+## 📋 Prerequisites
+
+- Python 3.11+
+- Node.js 18+
+- PostgreSQL 15+
+- Redis 7+
+- Docker & Docker Compose (optional)
+
+## 🚀 Quick Start
+
+### Using Docker (Recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/TapiwaChikwenya/MarketEye.git
+cd MarketEye
+
+# Start all services
+docker-compose up -d
+
+# Access the application
+# Frontend: http://localhost:5173
+# Backend API: http://localhost:8000
+# API Docs: http://localhost:8000/docs
+```
+
+### Manual Setup
+
+#### Backend
+
+```bash
+cd backend
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your configuration
+
+# Run database migrations
+alembic upgrade head
+
+# Start the server
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# In another terminal, start Celery worker
+celery -A app.celery_app worker --loglevel=info
+
+# Start Celery beat scheduler
+celery -A app.celery_app beat --loglevel=info
+```
+
+#### Frontend
+
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your configuration
+
+# Start development server
+npm run dev
+```
+
+## 📚 Documentation
+
+- [API Documentation](http://localhost:8000/docs) - Interactive OpenAPI docs
+- [Architecture Guide](./docs/architecture.md)
+- [User Guide](./docs/user-guide.md)
+- [Development Guide](./docs/development.md)
+
+## 🔐 Environment Variables
+
+### Backend (.env)
+
+```env
+# Database
+DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/marketeye
+
+# Redis
+REDIS_URL=redis://localhost:6379/0
+
+# JWT
+SECRET_KEY=your-secret-key-here
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# Twilio (for SMS/Calls)
+TWILIO_ACCOUNT_SID=your-account-sid
+TWILIO_AUTH_TOKEN=your-auth-token
+TWILIO_PHONE_NUMBER=your-twilio-number
+
+# Email (SMTP)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+
+# Market Data APIs
+ALPHA_VANTAGE_API_KEY=your-api-key (optional)
+COINGECKO_API_KEY=your-api-key (optional, free tier doesn't need it)
+
+# Application
+ENVIRONMENT=development
+CORS_ORIGINS=http://localhost:5173
+```
+
+### Frontend (.env)
+
+```env
+VITE_API_URL=http://localhost:8000
+VITE_WS_URL=ws://localhost:8000
+```
+
+## 🏗️ Project Structure
+
+```
+MarketEye/
+├── backend/
+│   ├── app/
+│   │   ├── api/              # API routes
+│   │   ├── core/             # Core configuration
+│   │   ├── models/           # SQLAlchemy models
+│   │   ├── schemas/          # Pydantic schemas
+│   │   ├── services/         # Business logic
+│   │   ├── workers/          # Celery tasks
+│   │   └── main.py           # FastAPI app
+│   ├── alembic/              # Database migrations
+│   ├── tests/                # Backend tests
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── components/       # React components
+│   │   ├── pages/            # Page components
+│   │   ├── hooks/            # Custom hooks
+│   │   ├── lib/              # Utilities
+│   │   ├── services/         # API services
+│   │   └── App.tsx
+│   ├── public/
+│   └── package.json
+├── docker-compose.yml
+└── README.md
+```
+
+## 🎨 UI Preview
+
+The app features a cyberpunk-inspired dark theme with:
+- Neon accent colors (cyan, magenta, lime)
+- Smooth animations and transitions
+- Real-time sparkline charts
+- Glassmorphism effects
+- Responsive grid layouts
+
+## 📱 Key Features
+
+### Alert Conditions
+- Price above/below threshold
+- Percentage change (daily, hourly)
+- Volume spikes
+- Portfolio-level alerts
+- Custom indicator-based alerts
+
+### Notification Channels
+- SMS via Twilio
+- Voice calls via Twilio
+- Email via SMTP
+- Push notifications (coming soon)
+
+### Portfolio Analytics
+- Real-time P&L tracking
+- Asset allocation breakdown
+- Performance metrics
+- Top gainers/losers
+
+## 🧪 Testing
+
+```bash
+# Backend tests
+cd backend
+pytest
+
+# Frontend tests
+cd frontend
+npm test
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read our [Contributing Guide](./CONTRIBUTING.md) for details.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
+
+## ⚠️ Disclaimer
+
+**MarketEye is for informational purposes only. It is not a broker and does not execute trades. Data may be delayed. This is not financial advice. Always verify with your broker before making investment decisions.**
+
+## 🙏 Acknowledgments
+
+- Market data powered by Yahoo Finance, CoinGecko, and Alpha Vantage
+- Charts by TradingView Lightweight Charts
+- Icons by Lucide
+
+---
+
+Built with ❤️ by the MarketEye team
