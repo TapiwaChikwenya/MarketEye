@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: marketeye123
       POSTGRES_DB: marketeye
     ports:
-      - "5432:5432"
+      - "5433:5432"  # Using 5433 to avoid conflicts with existing PostgreSQL
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -24,7 +24,7 @@ services:
     image: redis:7-alpine
     container_name: marketeye_redis
     ports:
-      - "6379:6379"
+      - "6380:6379"  # Using 6380 to avoid conflicts with existing Redis
     volumes:
       - redis_data:/data
     healthcheck:
