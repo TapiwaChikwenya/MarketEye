@@ -39,12 +39,13 @@ class UserResponse(UserBase):
     quiet_hours_start: Optional[time]
     quiet_hours_end: Optional[time]
     subscription_tier: SubscriptionTier
-        model_config = ConfigDict(from_attributes=True)
     is_active: bool
     email_verified: bool
     phone_verified: bool
 
-   
+    model_config = ConfigDict(from_attributes=True)
+
+
 class Token(BaseModel):
     """Token schema."""
     access_token: str

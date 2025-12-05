@@ -1,10 +1,28 @@
 """
 Main FastAPI application.
 """
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.v1 import auth, users, assets, watchlists, alerts, portfolio, public
+from app.api.v1 import auth, users, assets, watchlists, alerts, portfolio, public, tracked, notifications
+from app.db.base import Base, engine
+import app.models  # Import all models to register them
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan handler - create tables on startup."""
+    logger.info("Creating database tables if they don't exist...")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    logger.info("Database tables ready")
+    yield
+    # Cleanup on shutdown if needed
+
 
 # Create FastAPI app
 app = FastAPI(
@@ -13,6 +31,7 @@ app = FastAPI(
     version=settings.VERSION,
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # Configure CORS
@@ -32,6 +51,8 @@ app.include_router(assets.router, prefix=f"{settings.API_V1_PREFIX}/assets", tag
 app.include_router(watchlists.router, prefix=f"{settings.API_V1_PREFIX}/watchlists", tags=["Watchlists"])
 app.include_router(alerts.router, prefix=f"{settings.API_V1_PREFIX}/alerts", tags=["Alerts"])
 app.include_router(portfolio.router, prefix=f"{settings.API_V1_PREFIX}/portfolio", tags=["Portfolio"])
+app.include_router(tracked.router, prefix=f"{settings.API_V1_PREFIX}/tracked", tags=["Tracked Assets"])
+app.include_router(notifications.router, prefix=f"{settings.API_V1_PREFIX}/notifications", tags=["Notifications"])
 
 
 @app.get("/")

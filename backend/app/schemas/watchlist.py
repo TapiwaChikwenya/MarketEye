@@ -28,7 +28,7 @@ class WatchlistResponse(WatchlistBase):
     """Schema for watchlist response."""
     id: UUID4
     user_id: UUID4
-    sort_order: int
+    sort_order: Optional[int] = 0
     created_at: datetime
     updated_at: Optional[datetime] = None
 

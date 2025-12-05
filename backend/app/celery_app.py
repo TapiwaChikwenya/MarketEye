@@ -24,6 +24,9 @@ celery_app.conf.update(
     task_time_limit=30 * 60,  # 30 minutes
     worker_prefetch_multiplier=1,
     worker_max_tasks_per_child=1000,
+    # Store beat schedule in Redis instead of filesystem
+    beat_scheduler="celery.beat:PersistentScheduler",
+    beat_schedule_filename="/tmp/celerybeat-schedule",
 )
 
 # Periodic tasks schedule

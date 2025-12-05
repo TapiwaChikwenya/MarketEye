@@ -20,11 +20,12 @@ export interface AuthResponse {
 
 export const authService = {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const formData = new FormData();
-    formData.append('username', credentials.username);
-    formData.append('password', credentials.password);
+    // Use URLSearchParams for proper x-www-form-urlencoded encoding
+    const params = new URLSearchParams();
+    params.append('username', credentials.username);
+    params.append('password', credentials.password);
 
-    const response = await api.post<AuthResponse>('/auth/login', formData, {
+    const response = await api.post<AuthResponse>('/auth/login', params, {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },

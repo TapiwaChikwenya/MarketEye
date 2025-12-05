@@ -5,6 +5,7 @@ import { Eye, TrendingUp, Shield, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Navbar } from '@/components/Navbar';
 import { authService } from '@/services/auth';
 
 export function Login() {
@@ -23,21 +24,35 @@ export function Login() {
       await authService.login({ username: email, password });
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Login failed. Please try again.');
+      const detail = err.response?.data?.detail;
+      if (typeof detail === 'string') {
+        setError(detail);
+      } else if (Array.isArray(detail)) {
+        // Handle validation errors array
+        setError(detail.map((e: any) => e.msg || e.message || JSON.stringify(e)).join('. '));
+      } else if (typeof detail === 'object') {
+        setError(detail.msg || detail.message || 'Login failed. Please try again.');
+      } else {
+        setError('Login failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-cyber-darker cyber-grid-bg flex items-center justify-center p-6">
+    <div className="min-h-screen bg-cyber-darker cyber-grid-bg flex flex-col">
+      {/* Navbar */}
+      <Navbar transparent />
+
       {/* Background effects */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-96 h-96 bg-neon-cyan/10 rounded-full blur-3xl animate-pulse" />
         <div className="absolute bottom-20 right-10 w-96 h-96 bg-neon-magenta/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
       </div>
 
-      <div className="w-full max-w-6xl grid md:grid-cols-2 gap-8 relative z-10">
+      <div className="flex-1 flex items-center justify-center p-6">
+        <div className="w-full max-w-6xl grid md:grid-cols-2 gap-8 relative z-10">
         {/* Left side - Branding */}
         <motion.div
           initial={{ opacity: 0, x: -50 }}
@@ -162,6 +177,7 @@ export function Login() {
             </CardContent>
           </Card>
         </motion.div>
+        </div>
       </div>
     </div>
   );

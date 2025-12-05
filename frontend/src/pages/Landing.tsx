@@ -14,9 +14,11 @@ import {
   ArrowRight,
   Sparkles,
   Target,
+  PiggyBank,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Navbar } from '@/components/Navbar';
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -123,38 +125,8 @@ export function Landing() {
         />
       </div>
 
-      {/* Header */}
-      <header className="relative z-10 glass border-b border-neon-cyan/20">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-center gap-3"
-            >
-              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-neon-cyan to-neon-magenta flex items-center justify-center">
-                <Eye className="text-white" size={24} />
-              </div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-neon-cyan to-neon-magenta bg-clip-text text-transparent">
-                MarketEye
-              </h1>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-center gap-4"
-            >
-              <Button variant="ghost" onClick={() => navigate('/login')}>
-                Sign In
-              </Button>
-              <Button variant="neon" onClick={() => navigate('/register')}>
-                Get Started Free
-              </Button>
-            </motion.div>
-          </div>
-        </div>
-      </header>
+      {/* Header with Navbar */}
+      <Navbar transparent />
 
       {/* Hero Section */}
       <section className="relative z-10 container mx-auto px-6 py-20">
@@ -328,6 +300,51 @@ export function Landing() {
                       ))}
                     </div>
                   </div>
+
+                  {/* Funds */}
+                  {trendingData.funds && trendingData.funds.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                        Popular Funds
+                      </h4>
+                      <div className="space-y-2">
+                        {trendingData.funds.slice(0, 2).map((asset: TrendingAsset) => (
+                          <motion.div
+                            key={asset.symbol}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="flex items-center justify-between p-3 rounded-lg bg-cyber-dark/50 hover:bg-cyber-dark transition-colors"
+                          >
+                            <div>
+                              <div className="font-semibold text-neon-lime">{asset.symbol}</div>
+                              <div className="text-xs text-muted-foreground truncate max-w-[150px]">
+                                {asset.name}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-medium">
+                                ${parseFloat(asset.current_price).toFixed(2)}
+                              </div>
+                              <div
+                                className={`text-sm flex items-center gap-1 ${
+                                  parseFloat(asset.change_percent_24h) >= 0
+                                    ? 'text-neon-lime'
+                                    : 'text-neon-magenta'
+                                }`}
+                              >
+                                {parseFloat(asset.change_percent_24h) >= 0 ? (
+                                  <TrendingUp size={14} />
+                                ) : (
+                                  <TrendingDown size={14} />
+                                )}
+                                {Math.abs(parseFloat(asset.change_percent_24h)).toFixed(2)}%
+                              </div>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Market Summary */}
                   <div className="pt-4 border-t border-neon-cyan/10">

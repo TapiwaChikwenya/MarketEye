@@ -6,9 +6,30 @@ import requests
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 import logging
+import time
+from functools import lru_cache
 from app.models.asset import AssetType
 
 logger = logging.getLogger(__name__)
+
+# Simple in-memory cache
+_cache: Dict[str, tuple] = {}  # key -> (data, timestamp)
+CACHE_TTL_SECONDS = 300  # 5 minutes cache
+
+
+def get_cached(key: str) -> Optional[Any]:
+    """Get cached data if still valid."""
+    if key in _cache:
+        data, timestamp = _cache[key]
+        if time.time() - timestamp < CACHE_TTL_SECONDS:
+            return data
+        del _cache[key]
+    return None
+
+
+def set_cached(key: str, data: Any) -> None:
+    """Set cache data."""
+    _cache[key] = (data, time.time())
 
 
 class MarketDataService:
@@ -16,10 +37,19 @@ class MarketDataService:
 
     def __init__(self):
         self.coingecko_base_url = "https://api.coingecko.com/api/v3"
+        self._last_yfinance_call = 0
+        self._min_yfinance_interval = 1.0  # Minimum 1 second between yfinance calls
+
+    def _rate_limit_yfinance(self):
+        """Apply rate limiting for yfinance calls."""
+        elapsed = time.time() - self._last_yfinance_call
+        if elapsed < self._min_yfinance_interval:
+            time.sleep(self._min_yfinance_interval - elapsed)
+        self._last_yfinance_call = time.time()
 
     async def get_stock_price(self, symbol: str) -> Optional[Dict[str, Any]]:
         """
-        Get current stock price using yfinance.
+        Get current stock price using yfinance with caching.
 
         Args:
             symbol: Stock symbol (e.g., 'AAPL', 'TSLA')
@@ -27,7 +57,16 @@ class MarketDataService:
         Returns:
             Dict with price data or None if error
         """
+        cache_key = f"stock_{symbol}"
+        cached = get_cached(cache_key)
+        if cached:
+            logger.debug(f"Cache hit for {symbol}")
+            return cached
+
         try:
+            # Apply rate limiting
+            self._rate_limit_yfinance()
+            
             ticker = yf.Ticker(symbol)
             info = ticker.info
 
@@ -48,7 +87,7 @@ class MarketDataService:
                 change_24h = current_price - previous_close
                 change_percent_24h = (change_24h / previous_close) * 100
 
-            return {
+            result = {
                 'symbol': symbol,
                 'current_price': str(current_price) if current_price else None,
                 'market_cap': str(info.get('marketCap', '')),
@@ -60,13 +99,22 @@ class MarketDataService:
                 'exchange': info.get('exchange'),
                 'currency': info.get('currency', 'USD'),
             }
+            
+            # Cache the result if we got valid price
+            if result.get('current_price'):
+                set_cached(cache_key, result)
+                return result
+
+            logger.warning(f"No price data for {symbol}")
+            return None
+
         except Exception as e:
             logger.error(f"Error fetching stock price for {symbol}: {e}")
             return None
 
     async def get_crypto_price(self, symbol: str) -> Optional[Dict[str, Any]]:
         """
-        Get current crypto price using CoinGecko API.
+        Get current crypto price using CoinGecko API with caching.
 
         Args:
             symbol: Crypto symbol (e.g., 'BTC', 'ETH')
@@ -74,6 +122,12 @@ class MarketDataService:
         Returns:
             Dict with price data or None if error
         """
+        cache_key = f"crypto_{symbol.upper()}"
+        cached = get_cached(cache_key)
+        if cached:
+            logger.debug(f"Cache hit for crypto {symbol}")
+            return cached
+
         try:
             # Map common symbols to CoinGecko IDs
             symbol_to_id = {
@@ -124,7 +178,7 @@ class MarketDataService:
             market_data = data['market_data']
             current_price = market_data['current_price'].get('usd')
 
-            return {
+            result = {
                 'symbol': symbol.upper(),
                 'current_price': str(current_price) if current_price else None,
                 'market_cap': str(market_data.get('market_cap', {}).get('usd', '')),
@@ -136,6 +190,12 @@ class MarketDataService:
                 'exchange': 'CoinGecko',
                 'currency': 'USD',
             }
+            
+            # Cache the result
+            if result.get('current_price'):
+                set_cached(cache_key, result)
+            
+            return result
         except Exception as e:
             logger.error(f"Error fetching crypto price for {symbol}: {e}")
             return None
@@ -269,6 +329,156 @@ class MarketDataService:
             return 'CRYPTO'
         else:
             return 'STOCK'
+
+    async def get_mutual_fund_price(self, symbol: str) -> Optional[Dict[str, Any]]:
+        """
+        Get mutual fund data using yfinance.
+        Works for Fidelity funds (FXAIX, FSKAX, etc.) and other mutual funds.
+        """
+        cache_key = f"fund_{symbol}"
+        cached = get_cached(cache_key)
+        if cached:
+            logger.debug(f"Cache hit for fund {symbol}")
+            return cached
+
+        try:
+            self._rate_limit_yfinance()
+            
+            ticker = yf.Ticker(symbol)
+            info = ticker.info
+
+            # Get NAV (Net Asset Value) for mutual funds
+            current_price = (
+                info.get('navPrice') or 
+                info.get('regularMarketPrice') or 
+                info.get('previousClose')
+            )
+            
+            if not current_price:
+                hist = ticker.history(period='5d')
+                if not hist.empty:
+                    current_price = hist['Close'].iloc[-1]
+
+            previous_close = info.get('previousClose')
+            change_24h = None
+            change_percent_24h = None
+
+            if current_price and previous_close:
+                change_24h = current_price - previous_close
+                change_percent_24h = (change_24h / previous_close) * 100
+
+            result = {
+                'symbol': symbol.upper(),
+                'current_price': str(current_price) if current_price else None,
+                'market_cap': str(info.get('totalAssets', '')),
+                'volume_24h': str(info.get('volume', '')),
+                'change_24h': str(change_24h) if change_24h else None,
+                'change_percent_24h': str(change_percent_24h) if change_percent_24h else None,
+                'last_updated': datetime.utcnow().isoformat(),
+                'name': info.get('longName') or info.get('shortName') or symbol,
+                'exchange': info.get('exchange', 'Mutual Fund'),
+                'currency': info.get('currency', 'USD'),
+                'asset_type': 'MUTUAL_FUND',
+                'expense_ratio': str(info.get('annualReportExpenseRatio', '')),
+                'category': info.get('category', ''),
+                'fund_family': info.get('fundFamily', ''),
+            }
+            
+            if result.get('current_price'):
+                set_cached(cache_key, result)
+            
+            return result
+        except Exception as e:
+            logger.error(f"Error fetching mutual fund price for {symbol}: {e}")
+            return None
+
+    async def get_etf_price(self, symbol: str) -> Optional[Dict[str, Any]]:
+        """Get ETF data using yfinance."""
+        # ETFs work like stocks in yfinance
+        result = await self.get_stock_price(symbol)
+        if result:
+            result['asset_type'] = 'ETF'
+        return result
+
+    async def search_funds(self, query: str) -> List[Dict[str, Any]]:
+        """Search for mutual funds and ETFs."""
+        results = []
+        
+        # Popular Fidelity funds for search
+        fidelity_funds = [
+            {'symbol': 'FXAIX', 'name': 'Fidelity 500 Index Fund', 'type': 'MUTUAL_FUND'},
+            {'symbol': 'FSKAX', 'name': 'Fidelity Total Market Index Fund', 'type': 'MUTUAL_FUND'},
+            {'symbol': 'FZROX', 'name': 'Fidelity ZERO Total Market Index Fund', 'type': 'MUTUAL_FUND'},
+            {'symbol': 'FZILX', 'name': 'Fidelity ZERO International Index Fund', 'type': 'MUTUAL_FUND'},
+            {'symbol': 'FXNAX', 'name': 'Fidelity U.S. Bond Index Fund', 'type': 'MUTUAL_FUND'},
+            {'symbol': 'FTBFX', 'name': 'Fidelity Total Bond Fund', 'type': 'MUTUAL_FUND'},
+            {'symbol': 'FBALX', 'name': 'Fidelity Balanced Fund', 'type': 'MUTUAL_FUND'},
+            {'symbol': 'FCNTX', 'name': 'Fidelity Contrafund', 'type': 'MUTUAL_FUND'},
+            {'symbol': 'FDGRX', 'name': 'Fidelity Growth Company Fund', 'type': 'MUTUAL_FUND'},
+            {'symbol': 'FBGRX', 'name': 'Fidelity Blue Chip Growth Fund', 'type': 'MUTUAL_FUND'},
+            {'symbol': 'FMAGX', 'name': 'Fidelity Magellan Fund', 'type': 'MUTUAL_FUND'},
+            {'symbol': 'FOCPX', 'name': 'Fidelity OTC Portfolio', 'type': 'MUTUAL_FUND'},
+            {'symbol': 'FSPTX', 'name': 'Fidelity Select Technology', 'type': 'MUTUAL_FUND'},
+            {'symbol': 'FSHOX', 'name': 'Fidelity Select Construction & Housing', 'type': 'MUTUAL_FUND'},
+        ]
+        
+        # Vanguard funds
+        vanguard_funds = [
+            {'symbol': 'VFIAX', 'name': 'Vanguard 500 Index Fund Admiral', 'type': 'MUTUAL_FUND'},
+            {'symbol': 'VTSAX', 'name': 'Vanguard Total Stock Market Index Fund', 'type': 'MUTUAL_FUND'},
+            {'symbol': 'VBTLX', 'name': 'Vanguard Total Bond Market Index Fund', 'type': 'MUTUAL_FUND'},
+            {'symbol': 'VTIAX', 'name': 'Vanguard Total International Stock Index', 'type': 'MUTUAL_FUND'},
+            {'symbol': 'VWELX', 'name': 'Vanguard Wellington Fund', 'type': 'MUTUAL_FUND'},
+        ]
+        
+        # Popular ETFs
+        etfs = [
+            {'symbol': 'SPY', 'name': 'SPDR S&P 500 ETF Trust', 'type': 'ETF'},
+            {'symbol': 'VOO', 'name': 'Vanguard S&P 500 ETF', 'type': 'ETF'},
+            {'symbol': 'VTI', 'name': 'Vanguard Total Stock Market ETF', 'type': 'ETF'},
+            {'symbol': 'QQQ', 'name': 'Invesco QQQ Trust', 'type': 'ETF'},
+            {'symbol': 'IWM', 'name': 'iShares Russell 2000 ETF', 'type': 'ETF'},
+            {'symbol': 'VEA', 'name': 'Vanguard FTSE Developed Markets ETF', 'type': 'ETF'},
+            {'symbol': 'VWO', 'name': 'Vanguard FTSE Emerging Markets ETF', 'type': 'ETF'},
+            {'symbol': 'BND', 'name': 'Vanguard Total Bond Market ETF', 'type': 'ETF'},
+            {'symbol': 'AGG', 'name': 'iShares Core U.S. Aggregate Bond ETF', 'type': 'ETF'},
+            {'symbol': 'GLD', 'name': 'SPDR Gold Shares', 'type': 'ETF'},
+            {'symbol': 'ARKK', 'name': 'ARK Innovation ETF', 'type': 'ETF'},
+            {'symbol': 'XLF', 'name': 'Financial Select Sector SPDR Fund', 'type': 'ETF'},
+            {'symbol': 'XLK', 'name': 'Technology Select Sector SPDR Fund', 'type': 'ETF'},
+        ]
+        
+        all_funds = fidelity_funds + vanguard_funds + etfs
+        query_lower = query.lower()
+        
+        for fund in all_funds:
+            if (query_lower in fund['symbol'].lower() or 
+                query_lower in fund['name'].lower()):
+                results.append({
+                    'symbol': fund['symbol'],
+                    'name': fund['name'],
+                    'asset_type': fund['type'],
+                    'exchange': 'Fund' if fund['type'] == 'MUTUAL_FUND' else 'ETF',
+                })
+        
+        # If direct symbol match, try yfinance
+        if len(results) == 0 and len(query) >= 2:
+            try:
+                self._rate_limit_yfinance()
+                ticker = yf.Ticker(query.upper())
+                info = ticker.info
+                if info and info.get('symbol'):
+                    asset_type = self._detect_asset_type(info)
+                    results.append({
+                        'symbol': info['symbol'],
+                        'name': info.get('longName') or info.get('shortName') or query.upper(),
+                        'asset_type': asset_type,
+                        'exchange': info.get('exchange', 'Unknown'),
+                    })
+            except:
+                pass
+        
+        return results[:20]  # Limit results
 
 
 # Global instance
