@@ -3,7 +3,7 @@ User schemas.
 """
 from typing import Optional
 from datetime import time
-from pydantic import BaseModel, EmailStr, UUID4
+from pydantic import BaseModel, EmailStr, UUID4, ConfigDict
 from app.models.user import ContactMethod, SubscriptionTier
 
 
@@ -39,14 +39,12 @@ class UserResponse(UserBase):
     quiet_hours_start: Optional[time]
     quiet_hours_end: Optional[time]
     subscription_tier: SubscriptionTier
+        model_config = ConfigDict(from_attributes=True)
     is_active: bool
     email_verified: bool
     phone_verified: bool
 
-    class Config:
-        from_attributes = True
-
-
+   
 class Token(BaseModel):
     """Token schema."""
     access_token: str
