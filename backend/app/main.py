@@ -4,7 +4,7 @@ Main FastAPI application.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.v1 import auth, users, assets, watchlists, alerts, portfolio
+from app.api.v1 import auth, users, assets, watchlists, alerts, portfolio, public
 
 # Create FastAPI app
 app = FastAPI(
@@ -25,6 +25,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(public.router, prefix=f"{settings.API_V1_PREFIX}/public", tags=["Public"])
 app.include_router(auth.router, prefix=f"{settings.API_V1_PREFIX}/auth", tags=["Authentication"])
 app.include_router(users.router, prefix=f"{settings.API_V1_PREFIX}/users", tags=["Users"])
 app.include_router(assets.router, prefix=f"{settings.API_V1_PREFIX}/assets", tags=["Assets"])

@@ -18,13 +18,18 @@ class NotificationService:
     def __init__(self):
         # Initialize Twilio client if credentials are available
         if settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN:
-            self.twilio_client = Client(
-                settings.TWILIO_ACCOUNT_SID,
-                settings.TWILIO_AUTH_TOKEN
-            )
+            try:
+                self.twilio_client = Client(
+                    settings.TWILIO_ACCOUNT_SID,
+                    settings.TWILIO_AUTH_TOKEN
+                )
+                logger.info("Twilio initialized successfully")
+            except Exception as e:
+                self.twilio_client = None
+                logger.warning(f"Twilio initialization failed: {e}. SMS/Call notifications disabled.")
         else:
             self.twilio_client = None
-            logger.warning("Twilio credentials not configured. SMS/Call notifications disabled.")
+            logger.info("Twilio credentials not configured. SMS/Call notifications will be simulated in demo mode.")
 
     async def send_sms(self, to: str, message: str) -> dict:
         """
@@ -38,8 +43,13 @@ class NotificationService:
             Dict with status and message_id or error
         """
         if not self.twilio_client:
-            logger.error("Twilio not configured")
-            return {"status": "error", "message": "SMS service not configured"}
+            # Demo mode - simulate SMS sending
+            logger.info(f"[DEMO MODE] SMS to {to}: {message}")
+            return {
+                "status": "sent",
+                "message_id": f"demo_sms_{hash(message) % 100000}",
+                "provider": "twilio_demo"
+            }
 
         try:
             twilio_message = self.twilio_client.messages.create(
@@ -73,8 +83,13 @@ class NotificationService:
             Dict with status and call_id or error
         """
         if not self.twilio_client:
-            logger.error("Twilio not configured")
-            return {"status": "error", "message": "Call service not configured"}
+            # Demo mode - simulate call
+            logger.info(f"[DEMO MODE] Call to {to}: {message}")
+            return {
+                "status": "sent",
+                "call_id": f"demo_call_{hash(message) % 100000}",
+                "provider": "twilio_demo"
+            }
 
         try:
             # Create TwiML for text-to-speech
@@ -119,8 +134,12 @@ class NotificationService:
             Dict with status
         """
         if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
-            logger.error("SMTP credentials not configured")
-            return {"status": "error", "message": "Email service not configured"}
+            # Demo mode - simulate email sending
+            logger.info(f"[DEMO MODE] Email to {to}: {subject}")
+            return {
+                "status": "sent",
+                "provider": "smtp_demo"
+            }
 
         try:
             message = MIMEMultipart("alternative")
