@@ -45,6 +45,8 @@ services:
       ENVIRONMENT: development
       DEBUG: "True"
       CORS_ORIGINS: '["http://localhost:5173","http://localhost:3000"]'
+      FINNHUB_API_KEY: ${FINNHUB_API_KEY:-}
+      ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY:-}
     ports:
       - "8000:8000"
     volumes:
@@ -67,6 +69,8 @@ services:
       DATABASE_URL_SYNC: postgresql://marketeye:marketeye123@postgres:5432/marketeye
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:-super-secret-key-change-in-production}
+      FINNHUB_API_KEY: ${FINNHUB_API_KEY:-}
+      ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY:-}
     volumes:
       - ./backend:/app
     depends_on:
@@ -85,6 +89,8 @@ services:
       DATABASE_URL_SYNC: postgresql://marketeye:marketeye123@postgres:5432/marketeye
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:-super-secret-key-change-in-production}
+      FINNHUB_API_KEY: ${FINNHUB_API_KEY:-}
+      ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY:-}
     volumes:
       - ./backend:/app
     depends_on:

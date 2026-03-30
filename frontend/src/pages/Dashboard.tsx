@@ -25,6 +25,7 @@ import { alertsService, CONDITION_TYPE_LABELS, ConditionType, CreateAlertData } 
 import { trackedService, TrackedAsset, TrackAssetData } from '@/services/tracked';
 import { notificationsService, Notification as AppNotification } from '@/services/notifications';
 import { useNotifications, useNotificationState } from '@/hooks/useNotifications';
+import { useAlertStream, playAlertSound, type AlertEvent } from '@/hooks/useAlertStream';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -103,6 +104,20 @@ export function Dashboard() {
   // Notifications
   const { requestPermission, showPriceAlert, isEnabled: pushEnabled, isSupported: pushSupported } = useNotifications();
   const { notifications: appNotifications, unreadCount, addNotification, markAsRead, markAllAsRead, clearNotifications } = useNotificationState();
+
+  // SSE alert stream -- plays sound + shows browser notification for every triggered alert
+  useAlertStream({
+    onAlert: (event: AlertEvent) => {
+      playAlertSound();
+      showPriceAlert(event.symbol, event.condition, event.price);
+      addNotification({
+        type: event.type === 'test' ? 'system' : 'price_alert',
+        title: event.title,
+        message: event.body,
+        symbol: event.symbol,
+      });
+    },
+  });
 
   // Form states
   const [settingsForm, setSettingsForm] = useState<UpdateUserData>({});

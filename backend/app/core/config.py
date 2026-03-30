@@ -55,8 +55,16 @@ class Settings(BaseSettings):
     SMTP_FROM_NAME: str = "MarketEye"
 
     # Market Data APIs
+    FINNHUB_API_KEY: Optional[str] = None
     ALPHA_VANTAGE_API_KEY: Optional[str] = None
     COINGECKO_API_KEY: Optional[str] = None
+    COINCAP_ENABLED: bool = True
+
+    # Provider Resilience
+    PROVIDER_CIRCUIT_BREAKER_THRESHOLD: int = 5
+    PROVIDER_CIRCUIT_BREAKER_TIMEOUT: int = 60
+    CACHE_FRESH_TTL_SECONDS: int = 300   # 5 minutes
+    CACHE_STALE_TTL_SECONDS: int = 1800  # 30 minutes
 
     # Alert Settings
     ALERT_CHECK_INTERVAL_SECONDS: int = 60

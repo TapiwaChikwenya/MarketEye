@@ -1,16 +1,21 @@
 """
-Notification endpoints - for browser push notifications and notification history.
+Notification endpoints - browser push via SSE, test, and notification history.
 """
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
 from datetime import datetime
+
 from app.core.deps import get_db, get_current_active_user
+from app.core.security import decode_access_token
 from app.models.user import User
 from app.models.notification import NotificationLog, EventType, NotificationStatus
 from app.models.asset import Asset
+from app.services.sse import subscribe_alerts, publish_alert
 
 router = APIRouter()
 
@@ -141,9 +146,44 @@ async def get_notification_summary(
     )
 
 
+@router.get("/stream")
+async def notification_stream(
+    request: Request,
+    token: str = Query(...),
+):
+    """SSE endpoint that streams triggered alerts to the browser.
+
+    The browser connects with ``EventSource('/api/v1/notifications/stream?token=...')``
+    and receives JSON payloads for each alert that fires for the authenticated user.
+    """
+    payload = decode_access_token(token)
+    if payload is None:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    user_id: str = payload.get("sub")
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    async def event_generator():
+        async for chunk in subscribe_alerts(user_id):
+            if await request.is_disconnected():
+                break
+            yield chunk
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 class TestNotificationRequest(BaseModel):
     """Request for testing notifications."""
-    channel: str = "PUSH"  # PUSH, EMAIL, SMS
+    channel: str = "PUSH"
     message: Optional[str] = None
 
 
@@ -153,27 +193,36 @@ async def send_test_notification(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Send a test notification to verify notification setup.
-    For PUSH notifications, this returns data for the frontend to show.
+    """Send a test notification.
+
+    For PUSH, publishes to the SSE stream so connected browsers receive it.
     """
     message = request.message or "This is a test notification from MarketEye!"
-    
+
     if request.channel == "PUSH":
-        # For push notifications, we return data for the frontend to display
+        alert_payload = {
+            "user_id": str(current_user.id),
+            "type": "test",
+            "title": "MarketEye Test",
+            "body": message,
+            "symbol": "TEST",
+            "price": "0.00",
+            "condition": "Test notification sent successfully",
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+        await publish_alert(alert_payload)
         return {
             "status": "success",
             "channel": "PUSH",
             "data": {
-                "title": "🔔 MarketEye Test",
+                "title": alert_payload["title"],
                 "body": message,
-                "timestamp": datetime.utcnow().isoformat(),
-            }
+                "timestamp": alert_payload["timestamp"],
+            },
         }
-    
-    # For other channels, use the notification service
+
     from app.services.notifications import notification_service
-    
+
     recipient = None
     if request.channel == "EMAIL":
         recipient = current_user.email
@@ -181,15 +230,14 @@ async def send_test_notification(
         recipient = current_user.phone_number
         if not recipient:
             raise HTTPException(status_code=400, detail="Phone number not configured")
-    
+
     result = await notification_service.send_notification(
         channel=request.channel,
         to=recipient,
         message=message,
         subject="MarketEye Test Notification"
     )
-    
-    # Log the notification
+
     log_entry = NotificationLog(
         user_id=current_user.id,
         event_type=EventType.ALERT_TRIGGERED,
@@ -201,10 +249,10 @@ async def send_test_notification(
     )
     db.add(log_entry)
     await db.commit()
-    
+
     return {
         "status": result["status"],
         "channel": request.channel,
-        "result": result
+        "result": result,
     }
 

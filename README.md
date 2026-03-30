@@ -112,9 +112,8 @@ npm run dev
 ## 📚 Documentation
 
 - [API Documentation](http://localhost:8000/docs) - Interactive OpenAPI docs
-- [Architecture Guide](./docs/architecture.md)
-- [User Guide](./docs/user-guide.md)
-- [Development Guide](./docs/development.md)
+- [Architecture Guide](./docs/architecture.md) - system topology, flows, and operations
+- [Public Market Data Feature](./docs/feature-public-market-data.md) - landing/demo data paths and safeguards
 
 ## 🔐 Environment Variables
 

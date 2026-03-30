@@ -86,17 +86,17 @@ async def _should_trigger_alert(alert: AlertRule, session) -> bool:
 
 async def _trigger_alert(alert: AlertRule, session):
     """Trigger an alert and send notification."""
-    # Get user and asset
-    result = await session.execute(select(User).filter(User.id == alert.user_id))
-    user = result.scalar_one_or_none()
+    from app.services.sse import publish_alert_sync
 
-    result = await session.execute(select(Asset).filter(Asset.id == alert.asset_id))
-    asset = result.scalar_one_or_none()
+    result_obj = await session.execute(select(User).filter(User.id == alert.user_id))
+    user = result_obj.scalar_one_or_none()
+
+    result_obj = await session.execute(select(Asset).filter(Asset.id == alert.asset_id))
+    asset = result_obj.scalar_one_or_none()
 
     if not user or not asset:
         return
 
-    # Check quiet hours
     if user.quiet_hours_enabled and not alert.override_quiet_hours:
         current_time = datetime.utcnow().time()
         if user.quiet_hours_start and user.quiet_hours_end:
@@ -104,47 +104,69 @@ async def _trigger_alert(alert: AlertRule, session):
                 logger.info(f"Alert {alert.id} suppressed due to quiet hours")
                 return
 
-    # Build notification message
     message = alert.custom_message or _build_alert_message(alert, asset)
 
-    # Determine recipient
-    recipient = None
-    if alert.notification_channel in ["SMS", "CALL"]:
-        recipient = user.phone_number
-    elif alert.notification_channel == "EMAIL":
-        recipient = user.email
+    condition_text = {
+        ConditionType.PRICE_ABOVE: f"above ${alert.threshold_value}",
+        ConditionType.PRICE_BELOW: f"below ${alert.threshold_value}",
+        ConditionType.PERCENT_CHANGE_UP: f"up {alert.threshold_value}%",
+        ConditionType.PERCENT_CHANGE_DOWN: f"down {alert.threshold_value}%",
+    }.get(alert.condition_type, "condition met")
 
-    if not recipient:
-        logger.warning(f"No recipient configured for alert {alert.id}")
-        return
+    send_result: dict | None = None
 
-    # Send notification
-    result = await notification_service.send_notification(
-        channel=alert.notification_channel,
-        to=recipient,
-        message=message,
-        subject=f"MarketEye Alert: {asset.symbol}"
-    )
+    if alert.notification_channel == "PUSH":
+        payload = {
+            "user_id": str(user.id),
+            "type": "price_alert",
+            "title": f"MarketEye Alert: {asset.symbol}",
+            "body": message,
+            "symbol": asset.symbol,
+            "price": str(asset.current_price),
+            "condition": f"is {condition_text}",
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+        try:
+            publish_alert_sync(payload)
+            send_result = {"status": "sent", "provider": "sse_push"}
+            logger.info(f"Published PUSH alert to SSE for user {user.id}")
+        except Exception as e:
+            send_result = {"status": "failed", "error": str(e)}
+            logger.error(f"Failed to publish PUSH alert: {e}")
+    else:
+        recipient = None
+        if alert.notification_channel in ["SMS", "CALL"]:
+            recipient = user.phone_number
+        elif alert.notification_channel == "EMAIL":
+            recipient = user.email
 
-    # Log notification
+        if not recipient:
+            logger.warning(f"No recipient configured for alert {alert.id}")
+            return
+
+        send_result = await notification_service.send_notification(
+            channel=alert.notification_channel,
+            to=recipient,
+            message=message,
+            subject=f"MarketEye Alert: {asset.symbol}",
+        )
+
     log_entry = NotificationLog(
         user_id=user.id,
         alert_id=alert.id,
         asset_id=asset.id,
         event_type=EventType.ALERT_TRIGGERED,
-        status=NotificationStatus.SENT if result["status"] == "sent" else NotificationStatus.FAILED,
+        status=NotificationStatus.SENT if send_result.get("status") == "sent" else NotificationStatus.FAILED,
         message=message,
-        details=result,
-        provider=result.get("provider"),
-        provider_message_id=result.get("message_id") or result.get("call_id"),
+        details=send_result,
+        provider=send_result.get("provider"),
+        provider_message_id=send_result.get("message_id") or send_result.get("call_id"),
     )
     session.add(log_entry)
 
-    # Update alert
     alert.last_triggered_at = datetime.utcnow()
     alert.trigger_count += 1
 
-    # Deactivate if one-time alert
     if alert.repeat_behavior == "one_time":
         alert.is_active = False
 

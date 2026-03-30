@@ -51,6 +51,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.workers.alerts.cleanup_old_notifications",
         "schedule": crontab(hour=0, minute=0),  # Daily at midnight
     },
+    # Backfill daily OHLCV after US market close (22:30 UTC / 6:30 PM ET)
+    "backfill-daily-prices": {
+        "task": "app.workers.market_data.backfill_daily_prices",
+        "schedule": crontab(hour=22, minute=30),
+    },
 }
 
 if __name__ == "__main__":
