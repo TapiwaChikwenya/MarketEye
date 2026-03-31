@@ -14,6 +14,7 @@ import { TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { API_URL } from '@/lib/api-config';
 
 interface PriceDataPoint {
   timestamp: string;
@@ -33,8 +34,6 @@ interface PriceChartProps {
   onClose?: () => void;
   compact?: boolean;
 }
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const TIME_PERIODS = [
   { label: '1D', value: '1d', interval: '5m' },

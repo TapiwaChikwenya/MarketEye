@@ -28,6 +28,7 @@ import { useNotifications, useNotificationState } from '@/hooks/useNotifications
 import { useAlertStream, playAlertSound, type AlertEvent } from '@/hooks/useAlertStream';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { API_URL } from '@/lib/api-config';
 
 interface TrendingData {
   stocks: Asset[];
@@ -54,8 +55,6 @@ interface SearchResult {
   asset_type: string;
   exchange?: string;
 }
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -576,6 +575,12 @@ export function Dashboard() {
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2">
+              {user?.email && (
+                <div className="hidden lg:flex items-center px-3 py-1.5 rounded-md border border-neon-cyan/20 bg-cyber-dark/40 text-xs text-muted-foreground">
+                  Signed in as&nbsp;
+                  <span className="text-neon-cyan font-medium">{user.email}</span>
+                </div>
+              )}
               <Button 
                 variant="ghost" 
                 size="icon"
@@ -646,8 +651,9 @@ export function Dashboard() {
             className="mb-6"
           >
             <h2 className="text-xl text-muted-foreground">
-              Welcome back, <span className="text-neon-cyan font-semibold">{user.name || user.email}</span>
+              Welcome, <span className="text-neon-cyan font-semibold">{user.name || user.email}</span>
             </h2>
+            {user.name && <p className="text-sm text-muted-foreground">{user.email}</p>}
           </motion.div>
         )}
 

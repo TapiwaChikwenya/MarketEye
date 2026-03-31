@@ -1,0 +1,119 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: marketeye_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-marketeye}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-marketeye123}
+      POSTGRES_DB: ${POSTGRES_DB:-marketeye}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-marketeye}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: marketeye_redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: marketeye_backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-marketeye}:${POSTGRES_PASSWORD:-marketeye123}@postgres:5432/${POSTGRES_DB:-marketeye}
+      DATABASE_URL_SYNC: postgresql://${POSTGRES_USER:-marketeye}:${POSTGRES_PASSWORD:-marketeye123}@postgres:5432/${POSTGRES_DB:-marketeye}
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY}
+      ENVIRONMENT: production
+      DEBUG: "False"
+      CORS_ORIGINS: '${CORS_ORIGINS:-["http://localhost","http://127.0.0.1"]}'
+      FINNHUB_API_KEY: ${FINNHUB_API_KEY:-}
+      ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: marketeye_celery_worker
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-marketeye}:${POSTGRES_PASSWORD:-marketeye123}@postgres:5432/${POSTGRES_DB:-marketeye}
+      DATABASE_URL_SYNC: postgresql://${POSTGRES_USER:-marketeye}:${POSTGRES_PASSWORD:-marketeye123}@postgres:5432/${POSTGRES_DB:-marketeye}
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY}
+      ENVIRONMENT: production
+      DEBUG: "False"
+      FINNHUB_API_KEY: ${FINNHUB_API_KEY:-}
+      ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A app.celery_app worker --loglevel=info
+
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: marketeye_celery_beat
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-marketeye}:${POSTGRES_PASSWORD:-marketeye123}@postgres:5432/${POSTGRES_DB:-marketeye}
+      DATABASE_URL_SYNC: postgresql://${POSTGRES_USER:-marketeye}:${POSTGRES_PASSWORD:-marketeye123}@postgres:5432/${POSTGRES_DB:-marketeye}
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY}
+      ENVIRONMENT: production
+      DEBUG: "False"
+      FINNHUB_API_KEY: ${FINNHUB_API_KEY:-}
+      ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A app.celery_app beat --loglevel=info
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        VITE_API_URL: ${VITE_API_URL:-}
+    container_name: marketeye_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:
+

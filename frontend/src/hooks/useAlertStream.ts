@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { API_URL } from '@/lib/api-config';
 
 export interface AlertEvent {
   user_id: string;
@@ -14,8 +15,6 @@ export interface AlertEvent {
 interface UseAlertStreamOptions {
   onAlert: (event: AlertEvent) => void;
 }
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 /**
  * Connects to the SSE ``/notifications/stream`` endpoint and invokes

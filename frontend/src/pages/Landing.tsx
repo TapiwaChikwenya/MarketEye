@@ -19,9 +19,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Navbar } from '@/components/Navbar';
+import { API_URL } from '@/lib/api-config';
 import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 interface TrendingAsset {
   symbol: string;

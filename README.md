@@ -62,6 +62,44 @@ docker-compose up -d
 # API Docs: http://localhost:8000/docs
 ```
 
+### Production-Style Docker Deployment (LAN/Another Device)
+
+```bash
+# 1) Clone
+git clone https://github.com/TapiwaChikwenya/MarketEye.git
+cd MarketEye
+
+# 2) Create/Update .env at repo root
+# Required:
+#   SECRET_KEY=<strong-random-secret>
+# Optional:
+#   POSTGRES_USER=marketeye
+#   POSTGRES_PASSWORD=change-me
+#   POSTGRES_DB=marketeye
+#   FINNHUB_API_KEY=<recommended>
+#   ALPHA_VANTAGE_API_KEY=<optional>
+#   CORS_ORIGINS=http://<server-ip>,http://localhost
+#   VITE_API_URL=   # leave empty to auto-use current host
+
+# 3) Build and start production stack
+docker compose -f docker-compose.prod.yml up -d --build
+
+# 4) Access
+# App:      http://<server-ip>/
+# API docs: http://<server-ip>/docs
+# Health:   http://<server-ip>/health
+```
+
+#### If another device cannot reach the site
+
+- Use the server LAN IP (for example `http://192.168.x.x`), not `localhost`.
+- Ensure host firewall allows inbound TCP `80` (and `8000` if directly testing backend).
+- Confirm both devices are on the same subnet and AP client isolation is disabled.
+- Verify published ports are listening:
+  - `docker compose -f docker-compose.prod.yml ps`
+  - `curl http://localhost/health`
+- If app loads but API calls fail in browser, hard refresh after rebuild (`Ctrl/Cmd+Shift+R`) to clear old frontend bundle.
+
 ### Manual Setup
 
 #### Backend
