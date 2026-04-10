@@ -28,12 +28,20 @@
 }
 
 @layer base {
+  html {
+    @apply overflow-x-hidden;
+  }
   * {
     @apply border-border;
   }
   body {
-    @apply bg-cyber-darker text-foreground;
+    @apply bg-cyber-darker text-foreground overflow-x-hidden;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    /* Reduce double-tap zoom delay on older mobile browsers */
+    touch-action: manipulation;
+    /* Respect notched devices when using fixed UI later */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 }
 

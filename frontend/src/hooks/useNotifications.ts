@@ -143,11 +143,13 @@ export function useNotificationState() {
     const saved = localStorage.getItem('marketeye_notifications');
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        setNotifications(parsed.map((n: any) => ({
-          ...n,
-          timestamp: new Date(n.timestamp)
-        })));
+        const parsed = JSON.parse(saved) as Array<Omit<AppNotification, 'timestamp'> & { timestamp: string }>;
+        setNotifications(
+          parsed.map((n) => ({
+            ...n,
+            timestamp: new Date(n.timestamp),
+          }))
+        );
       } catch (e) {
         console.error('Error loading notifications:', e);
       }

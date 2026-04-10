@@ -34,7 +34,9 @@ docker-compose exec backend alembic upgrade head
 ### Step 3: Access the Application
 
 Open your browser:
-- **Frontend**: http://localhost:5173
+- **Frontend (dev stack, `docker-compose.yml`)**: http://localhost:5173  
+  Or from the repo root after `cd frontend && npm install`: `npm run dev` (or `npm run dev` from root — see root `package.json`).
+- **Frontend (prod stack, `docker-compose.prod.yml`)**: http://localhost (port 80) **or** http://localhost:5173 (mapped to the same UI)
 - **API Docs**: http://localhost:8000/docs
 - **API Health**: http://localhost:8000/health
 

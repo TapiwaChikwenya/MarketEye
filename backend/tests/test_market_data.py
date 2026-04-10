@@ -9,7 +9,9 @@ import pytest
 import requests
 import yfinance as yf
 
-from app.api.v1.public import get_trending_assets
+from fastapi import HTTPException
+
+from app.api.v1.public import get_trending_assets, search_assets
 from app.models.asset import AssetType
 from app.services.price_history_utils import points_to_rows, safe_decimal
 from app.services.market_data import (
@@ -317,6 +319,7 @@ async def test_public_trending_summary_counts(monkeypatch):
 
     assert result["market_summary"]["gainers"] == 29
     assert result["market_summary"]["losers"] == 9
+    assert result["market_summary"]["total_assets"] == 38
 
     # total_change = 10*1 + 9*(-2) + 14*0.5 + 5*1 = 4; avg = round(4/38, 2) = 0.11
     assert math.isclose(result["market_summary"]["avg_change_24h"], 0.11, abs_tol=0.01)
@@ -354,6 +357,14 @@ async def test_public_trending_handles_provider_failure(monkeypatch):
     assert len(result["stocks"]) == 0
     assert len(result["crypto"]) == 9
     assert result["market_summary"]["losers"] == 0
+
+
+@pytest.mark.asyncio
+async def test_public_search_rejects_whitespace_only():
+    """Whitespace-only query should not hit providers (422)."""
+    with pytest.raises(HTTPException) as excinfo:
+        await search_assets(q="   \t")
+    assert excinfo.value.status_code == 422
 
 
 # -----------------------------------------------------------------------

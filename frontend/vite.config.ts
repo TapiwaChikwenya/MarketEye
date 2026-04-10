@@ -12,6 +12,10 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    strictPort: true,
     host: true,
+    // LAN IPs and localhost are allowed by default (see server.allowedHosts in Vite docs).
+    // For Bonjour hostnames (e.g. my-mac.local), set:
+    // __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=my-mac.local
   },
 })

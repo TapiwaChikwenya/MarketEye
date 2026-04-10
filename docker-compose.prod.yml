@@ -110,6 +110,8 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      # Same nginx UI as :80 — keeps http://localhost:5173 working after `docker compose -f docker-compose.prod.yml up`
+      - "5173:80"
     depends_on:
       - backend
 

@@ -8,13 +8,9 @@ import {
   Bell,
   Shield,
   Zap,
-  Clock,
-  Users,
-  Activity,
   ArrowRight,
   Sparkles,
   Target,
-  PiggyBank,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -29,10 +25,26 @@ interface TrendingAsset {
   change_percent_24h: string;
 }
 
+interface PublicTrendingPayload {
+  stocks: TrendingAsset[];
+  crypto: TrendingAsset[];
+  funds?: TrendingAsset[];
+  market_summary: {
+    gainers: number;
+    losers: number;
+  };
+}
+
+interface PublicMarketStats {
+  uptime: string;
+  total_users: number;
+  alerts_triggered_today: number;
+}
+
 export function Landing() {
   const navigate = useNavigate();
-  const [trendingData, setTrendingData] = useState<any>(null);
-  const [stats, setStats] = useState<any>(null);
+  const [trendingData, setTrendingData] = useState<PublicTrendingPayload | null>(null);
+  const [stats, setStats] = useState<PublicMarketStats | null>(null);
 
   useEffect(() => {
     // Fetch trending assets and stats
@@ -95,7 +107,7 @@ export function Landing() {
   ];
 
   return (
-    <div className="min-h-screen bg-cyber-darker cyber-grid-bg overflow-hidden">
+    <div className="min-h-dvh bg-cyber-darker cyber-grid-bg overflow-hidden">
       {/* Animated background elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <motion.div

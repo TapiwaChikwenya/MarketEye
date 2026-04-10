@@ -17,13 +17,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Asset, User, Watchlist, AlertRule } from '@/types';
+import { isAxiosError } from 'axios';
 import { api } from '@/lib/axios';
 import { authService } from '@/services/auth';
 import { userService, CONTACT_METHODS, TIME_ZONES, UpdateUserData } from '@/services/user';
 import { watchlistsService, WatchlistWithAssetsDetail } from '@/services/watchlists';
-import { alertsService, CONDITION_TYPE_LABELS, ConditionType, CreateAlertData } from '@/services/alerts';
+import { alertsService, CONDITION_TYPE_LABELS, ConditionType, CreateAlertData, NotificationChannel, RepeatBehavior } from '@/services/alerts';
 import { trackedService, TrackedAsset, TrackAssetData } from '@/services/tracked';
-import { notificationsService, Notification as AppNotification } from '@/services/notifications';
+import { notificationsService } from '@/services/notifications';
 import { useNotifications, useNotificationState } from '@/hooks/useNotifications';
 import { useAlertStream, playAlertSound, type AlertEvent } from '@/hooks/useAlertStream';
 import { Link, useNavigate } from 'react-router-dom';
@@ -40,13 +41,6 @@ interface TrendingData {
     gainers: number;
     losers: number;
   };
-}
-
-interface CatalogData {
-  stocks: Asset[];
-  crypto: Asset[];
-  funds: Asset[];
-  etfs: Asset[];
 }
 
 interface SearchResult {
@@ -135,10 +129,13 @@ export function Dashboard() {
       const trendingRes = await api.get<TrendingData>('/public/trending');
       const data = trendingRes.data;
       
-      const normalize = (arr: any[], fallbackType: Asset['asset_type']) =>
+      type TrendingListItem = Partial<Asset> & { symbol: string };
+      const normalize = (arr: TrendingListItem[] | undefined, fallbackType: Asset['asset_type']): Asset[] =>
         (arr || []).map((item, index) => ({
           ...item,
           id: item.id || `${item.symbol}-${index}`,
+          name: item.name ?? item.symbol,
+          currency: item.currency ?? 'USD',
           asset_type: (item.asset_type || fallbackType) as Asset['asset_type'],
           created_at: item.created_at || new Date().toISOString(),
         }));
@@ -200,9 +197,9 @@ export function Dashboard() {
       setAlerts(alertsData);
       setTrackedAssets(trackedData);
       
-      // Auto-select first tracked asset for chart
-      if (trackedData.length > 0 && !selectedChartAsset) {
-        setSelectedChartAsset(trackedData[0]);
+      // Auto-select first tracked asset for chart when none selected yet
+      if (trackedData.length > 0) {
+        setSelectedChartAsset((prev) => prev ?? trackedData[0]);
       }
       
       setSettingsForm({
@@ -323,8 +320,8 @@ export function Dashboard() {
       setShowAddAsset(false);
       setShowSearch(false);
       setSelectedAsset(null);
-    } catch (error: any) {
-      if (error.response?.status === 400) {
+    } catch (error: unknown) {
+      if (isAxiosError(error) && error.response?.status === 400) {
         toast.info(`${asset.symbol} is already being tracked`);
       } else {
         toast.error('Failed to track asset');
@@ -437,8 +434,12 @@ export function Dashboard() {
       // Refresh watchlists
       const updatedWatchlists = await watchlistsService.getWatchlists();
       setWatchlists(updatedWatchlists);
-    } catch (error: any) {
-      if (error.response?.data?.message?.includes('already')) {
+    } catch (error: unknown) {
+      const message =
+        isAxiosError(error) && error.response?.data && typeof error.response.data === 'object' && error.response.data !== null && 'message' in error.response.data
+          ? String((error.response.data as { message?: string }).message ?? '')
+          : '';
+      if (message.includes('already')) {
         toast.info(`${asset.symbol} is already in this watchlist`);
       } else {
         toast.error('Failed to add asset to watchlist');
@@ -529,7 +530,7 @@ export function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-cyber-darker cyber-grid-bg">
+    <div className="min-h-dvh bg-cyber-darker cyber-grid-bg">
       {/* Header */}
       <motion.header
         initial={{ y: -100 }}
@@ -1292,7 +1293,12 @@ export function Dashboard() {
                 <Label>Preferred Contact Method</Label>
                 <Select
                   value={settingsForm.preferred_contact_method || 'EMAIL'}
-                  onValueChange={(value: any) => setSettingsForm({ ...settingsForm, preferred_contact_method: value })}
+                  onValueChange={(value: string) =>
+                    setSettingsForm({
+                      ...settingsForm,
+                      preferred_contact_method: value as User['preferred_contact_method'],
+                    })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -1592,7 +1598,9 @@ export function Dashboard() {
                 <Label>Notification Method</Label>
                 <Select
                   value={alertForm.notification_channel}
-                  onValueChange={(value: any) => setAlertForm({ ...alertForm, notification_channel: value })}
+                  onValueChange={(value: string) =>
+                    setAlertForm({ ...alertForm, notification_channel: value as NotificationChannel })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -1609,7 +1617,9 @@ export function Dashboard() {
                 <Label>Repeat Behavior</Label>
                 <Select
                   value={alertForm.repeat_behavior}
-                  onValueChange={(value: any) => setAlertForm({ ...alertForm, repeat_behavior: value })}
+                  onValueChange={(value: string) =>
+                    setAlertForm({ ...alertForm, repeat_behavior: value as RepeatBehavior })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />

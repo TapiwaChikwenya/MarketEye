@@ -1,5 +1,5 @@
 import { api } from '@/lib/axios';
-import { Watchlist, WatchlistWithAssets, Asset } from '@/types';
+import { Watchlist, Asset } from '@/types';
 
 export interface CreateWatchlistData {
   name: string;

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Navbar } from '@/components/Navbar';
+import { isAxiosError } from 'axios';
 import { authService } from '@/services/auth';
 
 export function Register() {
@@ -36,15 +37,26 @@ export function Register() {
         name: formData.name,
       });
       navigate('/login');
-    } catch (err: any) {
-      const detail = err.response?.data?.detail;
+    } catch (err: unknown) {
+      if (!isAxiosError(err)) {
+        setError('Registration failed. Please try again.');
+        return;
+      }
+      const detail = err.response?.data && typeof err.response.data === 'object' && err.response.data !== null && 'detail' in err.response.data
+        ? (err.response.data as { detail?: unknown }).detail
+        : undefined;
       if (typeof detail === 'string') {
         setError(detail);
       } else if (Array.isArray(detail)) {
-        // Handle validation errors array
-        setError(detail.map((e: any) => e.msg || e.message || JSON.stringify(e)).join('. '));
-      } else if (typeof detail === 'object') {
-        setError(detail.msg || detail.message || 'Registration failed. Please try again.');
+        type ValidationItem = { msg?: string; message?: string };
+        setError(
+          detail
+            .map((e) => (typeof e === 'object' && e !== null ? (e as ValidationItem).msg || (e as ValidationItem).message : undefined) || JSON.stringify(e))
+            .join('. ')
+        );
+      } else if (typeof detail === 'object' && detail !== null) {
+        const d = detail as { msg?: string; message?: string };
+        setError(d.msg || d.message || 'Registration failed. Please try again.');
       } else {
         setError('Registration failed. Please try again.');
       }
@@ -54,7 +66,7 @@ export function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-cyber-darker cyber-grid-bg flex flex-col">
+    <div className="min-h-dvh bg-cyber-darker cyber-grid-bg flex flex-col">
       {/* Navbar */}
       <Navbar transparent />
 

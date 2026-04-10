@@ -3,7 +3,7 @@ import { Asset, HistoricalDataPoint } from '@/types';
 
 export const assetsService = {
   async searchAssets(query: string, assetType?: string): Promise<Asset[]> {
-    const params: any = { q: query };
+    const params: Record<string, string> = { q: query };
     if (assetType) params.asset_type = assetType;
 
     const response = await api.get<Asset[]>('/assets/search', { params });
@@ -15,7 +15,7 @@ export const assetsService = {
     return response.data;
   },
 
-  async getAssetPrice(assetId: string): Promise<any> {
+  async getAssetPrice(assetId: string): Promise<Record<string, unknown>> {
     const response = await api.get(`/assets/${assetId}/price`);
     return response.data;
   },

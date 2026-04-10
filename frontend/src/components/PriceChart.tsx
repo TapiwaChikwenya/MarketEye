@@ -1,8 +1,5 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useCallback } from 'react';
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   Tooltip,
@@ -31,7 +28,6 @@ interface PriceChartProps {
   assetType: 'STOCK' | 'CRYPTO' | 'ETF' | 'MUTUAL_FUND';
   currentPrice?: string;
   changePercent?: string;
-  onClose?: () => void;
   compact?: boolean;
 }
 
@@ -50,7 +46,6 @@ export function PriceChart({
   assetType,
   currentPrice,
   changePercent,
-  onClose,
   compact = false,
 }: PriceChartProps) {
   const [data, setData] = useState<PriceDataPoint[]>([]);
@@ -58,20 +53,16 @@ export function PriceChart({
   const [error, setError] = useState<string | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState(TIME_PERIODS[2]); // Default 1M
 
-  useEffect(() => {
-    fetchHistoricalData();
-  }, [symbol, selectedPeriod]);
-
-  const fetchHistoricalData = async () => {
+  const fetchHistoricalData = useCallback(async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await fetch(
         `${API_URL}/api/v1/public/history?symbol=${symbol}&asset_type=${assetType}&period=${selectedPeriod.value}&interval=${selectedPeriod.interval}`
       );
       const result = await response.json();
-      
+
       if (result.data && result.data.length > 0) {
         setData(result.data);
       } else {
@@ -84,7 +75,11 @@ export function PriceChart({
     } finally {
       setLoading(false);
     }
-  };
+  }, [symbol, assetType, selectedPeriod]);
+
+  useEffect(() => {
+    void fetchHistoricalData();
+  }, [fetchHistoricalData]);
 
   const formatDate = (timestamp: string) => {
     const date = new Date(timestamp);

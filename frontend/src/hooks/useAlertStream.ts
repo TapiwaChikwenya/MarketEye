@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import { API_URL } from '@/lib/api-config';
 
 export interface AlertEvent {

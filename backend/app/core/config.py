@@ -34,6 +34,8 @@ class Settings(BaseSettings):
 
     # CORS
     CORS_ORIGINS: List[str] = ["http://localhost:5173", "http://localhost:3000"]
+    # When True with DEBUG, also allow browser Origin headers from RFC1918 LAN (see main.py regex).
+    CORS_ALLOW_LAN_ORIGINS: bool = True
 
     @validator("CORS_ORIGINS", pre=True)
     def assemble_cors_origins(cls, v):

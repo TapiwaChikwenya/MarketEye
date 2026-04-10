@@ -34,10 +34,26 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Configure CORS
+# Configure CORS (explicit origins + optional LAN regex in development)
+_cors_regex = None
+if settings.DEBUG and settings.CORS_ALLOW_LAN_ORIGINS:
+    # Match http://<private-or-loopback host>:<port> so phones/tablets on the same Wi‑Fi work.
+    # Includes mDNS (.local) and IPv4 link-local (169.254.x.x) for hotspot / Bonjour cases.
+    _cors_regex = (
+        r"http://("
+        r"localhost|127\.0\.0\.1"
+        r"|192\.168\.\d{1,3}\.\d{1,3}"
+        r"|10\.\d{1,3}\.\d{1,3}\.\d{1,3}"
+        r"|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}"
+        r"|169\.254\.\d{1,3}\.\d{1,3}"
+        r"|[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.local"
+        r"):\d+$"
+    )
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
+    allow_origin_regex=_cors_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -1,35 +1,49 @@
 """
 Public endpoints (no authentication required).
+
+Read-only market data for the landing page and demos. No database access;
+responses must not include user data or secrets.
 """
-import time
-from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from app.db.base import AsyncSessionLocal
-from app.models.asset import Asset, AssetType
-from app.services.market_data import market_data_service
-from typing import List, Dict, Any, Tuple
 import asyncio
+import logging
+import time
+from typing import Any, Dict, List, Tuple
+
+from fastapi import APIRouter, HTTPException, Query
+
+from app.core.config import settings
+from app.models.asset import AssetType
+from app.services.market_data import market_data_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 _trending_cache: Dict[str, Any] = {}
 _trending_cache_ts: float = 0.0
-_TRENDING_CACHE_TTL = 300  # 5 minutes
 
 
-async def get_db() -> AsyncSession:
-    """Get database session without auth."""
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
+def _trending_cache_ttl_seconds() -> float:
+    return float(settings.CACHE_FRESH_TTL_SECONDS)
+
+
+def _parse_public_asset_type(asset_type: str | None) -> AssetType:
+    """Map query string to AssetType; default STOCK."""
+    u = (asset_type or "STOCK").upper().strip()
+    mapping = {
+        "CRYPTO": AssetType.CRYPTO,
+        "STOCK": AssetType.STOCK,
+        "ETF": AssetType.ETF,
+        "MUTUAL_FUND": AssetType.MUTUAL_FUND,
+        "INDEX": AssetType.INDEX,
+    }
+    return mapping.get(u, AssetType.STOCK)
 
 
 # ------------------------------------------------------------------
 # Helpers for concurrent trending fetch
 # ------------------------------------------------------------------
+
 
 async def _fetch_stock(symbol: str) -> Tuple[str, Dict[str, Any] | None]:
     try:
@@ -70,11 +84,12 @@ async def _fetch_fund(symbol: str) -> Tuple[str, Dict[str, Any] | None]:
 async def get_trending_assets() -> Dict[str, Any]:
     """
     Get trending assets for landing page (no auth required).
-    Cached for 5 minutes to avoid hammering upstream providers.
+    Cached (fresh TTL aligned with CACHE_FRESH_TTL_SECONDS) to limit upstream load.
     """
     global _trending_cache, _trending_cache_ts
 
-    if _trending_cache and (time.time() - _trending_cache_ts) < _TRENDING_CACHE_TTL:
+    ttl = _trending_cache_ttl_seconds()
+    if _trending_cache and (time.time() - _trending_cache_ts) < ttl:
         return _trending_cache
 
     result = await _fetch_trending_data()
@@ -102,14 +117,14 @@ async def _fetch_trending_data() -> Dict[str, Any]:
         "crypto": [],
         "funds": [],
         "market_summary": {
-            "total_assets": 18,
+            "total_assets": 0,
             "avg_change_24h": 0,
             "gainers": 0,
             "losers": 0,
         },
     }
 
-    tasks = []
+    tasks: List[Any] = []
     tasks.extend(_fetch_stock(s) for s in trending_symbols["stocks"])
     tasks.extend(_fetch_crypto(s) for s in trending_symbols["crypto"])
     tasks.extend(_fetch_fund(s) for s in trending_symbols["funds"])
@@ -142,11 +157,15 @@ async def _fetch_trending_data() -> Dict[str, Any]:
             count += 1
             if change > 0:
                 results["market_summary"]["gainers"] += 1
-            else:
+            elif change < 0:
                 results["market_summary"]["losers"] += 1
 
     if count > 0:
         results["market_summary"]["avg_change_24h"] = round(total_change / count, 2)
+
+    results["market_summary"]["total_assets"] = (
+        len(results["stocks"]) + len(results["crypto"]) + len(results["funds"])
+    )
 
     return results
 
@@ -159,8 +178,7 @@ async def get_public_history(
     interval: str = "1d",
 ) -> Dict[str, Any]:
     """
-    Public historical data endpoint by symbol/asset_type (no auth required).
-    Returns real market data; does not fall back to mock values.
+    Public historical data by symbol and asset type (no auth required).
     """
     data = await market_data_service.get_historical_data(
         symbol=symbol,
@@ -169,23 +187,25 @@ async def get_public_history(
         interval=interval,
     )
     if not data:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="No historical data available")
     return {"data": data}
 
 
 @router.get("/search")
-async def search_assets(q: str) -> Dict[str, Any]:
+async def search_assets(
+    q: str = Query(..., min_length=1, max_length=256, description="Search query"),
+) -> Dict[str, Any]:
     """
-    Search for assets across all types (stocks, crypto, funds).
-    No auth required.
+    Search for assets across stocks, crypto, and funds (no auth required).
+    Empty or whitespace-only queries are rejected.
     """
-    if not q or len(q) < 1:
-        return {"results": []}
+    query = q.strip()
+    if not query:
+        raise HTTPException(status_code=422, detail="Search query cannot be empty")
 
     fund_results, asset_results = await asyncio.gather(
-        market_data_service.search_funds(q),
-        market_data_service.search_assets(q),
+        market_data_service.search_funds(query),
+        market_data_service.search_assets(query),
     )
 
     merged: list = fund_results + asset_results
@@ -197,8 +217,8 @@ async def search_assets(q: str) -> Dict[str, Any]:
             seen.add(sym)
             deduped.append(item)
 
-    q_upper = q.strip().upper()
-    _TOKENIZED = {"xstock", "tokenized", "wrapped", "dinari", "ondo", "rstock"}
+    q_upper = query.upper()
+    _TOKENIZED = {"xstock", "tokenized", "wrapped", "dinari", "rstock"}
 
     def _sort_key(item: dict) -> tuple:
         sym = item.get("symbol", "").upper()
@@ -216,14 +236,14 @@ async def search_assets(q: str) -> Dict[str, Any]:
 @router.get("/market-stats")
 async def get_market_stats() -> Dict[str, Any]:
     """
-    Get overall market statistics for landing page.
+    Marketing / platform headline stats for the landing page (illustrative, not DB-backed).
     """
     return {
         "total_users": "10,000+",
         "alerts_triggered_today": "25,847",
         "assets_monitored": "15,000+",
         "uptime": "99.9%",
-        "avg_response_time": "< 100ms"
+        "avg_response_time": "< 100ms",
     }
 
 
@@ -232,70 +252,68 @@ async def get_asset_history_public(
     symbol: str,
     asset_type: str = "STOCK",
     period: str = "1mo",
-    interval: str = "1d"
+    interval: str = "1d",
 ) -> Dict[str, Any]:
     """
-    Get historical price data for an asset (public, no auth required).
-    Useful for displaying charts on the dashboard.
+    Historical price data for charts (public, read-only).
     """
-    from app.models.asset import AssetType
-    
+    at = _parse_public_asset_type(asset_type)
     try:
-        # Determine asset type
-        if asset_type.upper() == "CRYPTO":
-            at = AssetType.CRYPTO
-        else:
-            at = AssetType.STOCK
-        
-        # Fetch historical data
         historical_data = await market_data_service.get_historical_data(
             symbol,
             at,
             period=period,
-            interval=interval
+            interval=interval,
         )
-        
+
         if not historical_data:
             return {
                 "symbol": symbol,
                 "period": period,
                 "interval": interval,
-                "data": []
+                "data": [],
             }
-        
+
         return {
             "symbol": symbol,
             "period": period,
             "interval": interval,
-            "data": historical_data
+            "data": historical_data,
         }
-    except Exception as e:
+    except Exception:
+        logger.exception("Public history fetch failed for %s", symbol)
         return {
             "symbol": symbol,
             "period": period,
             "interval": interval,
             "data": [],
-            "error": str(e)
         }
 
 
 @router.get("/asset/{symbol}/price")
 async def get_asset_price_public(
     symbol: str,
-    asset_type: str = "STOCK"
+    asset_type: str = "STOCK",
 ) -> Dict[str, Any]:
     """
-    Get current price for an asset (public, no auth required).
+    Current price for an asset (public, read-only).
+    Supports STOCK, ETF, CRYPTO, MUTUAL_FUND.
     """
     try:
-        if asset_type.upper() == "CRYPTO":
+        at = (asset_type or "STOCK").upper().strip()
+        if at == "CRYPTO":
             data = await market_data_service.get_crypto_price(symbol)
+        elif at == "MUTUAL_FUND":
+            data = await market_data_service.get_mutual_fund_price(symbol)
+        elif at == "ETF":
+            data = await market_data_service.get_etf_price(symbol)
         else:
             data = await market_data_service.get_stock_price(symbol)
-        
+
         if not data:
             return {"error": "Unable to fetch price data", "symbol": symbol}
-        
+
         return data
-    except Exception as e:
-        return {"error": str(e), "symbol": symbol}
+    except Exception:
+        logger.exception("Public price fetch failed for %s", symbol)
+        return {"error": "Unable to fetch price data", "symbol": symbol}

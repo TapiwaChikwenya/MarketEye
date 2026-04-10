@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Eye, Home, LayoutDashboard, LogIn, UserPlus, LogOut, Bell, Settings } from 'lucide-react';
+import { Eye, Home, LayoutDashboard, LogIn, UserPlus, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { authService } from '@/services/auth';
 import { cn } from '@/lib/utils';
@@ -31,15 +31,15 @@ export function Navbar({ transparent = false, showAuthButtons = true }: NavbarPr
           : "bg-cyber-darker/95 backdrop-blur-md border-neon-cyan/20"
       )}
     >
-      <div className="container mx-auto px-6 py-4">
-        <div className="flex items-center justify-between">
+      <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
+        <div className="flex items-center justify-between gap-2">
           {/* Logo and Navigation */}
-          <div className="flex items-center gap-8">
-            <Link to="/" className="flex items-center gap-3 group">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-neon-cyan to-neon-magenta flex items-center justify-center group-hover:scale-105 transition-transform">
+          <div className="flex min-w-0 items-center gap-4 md:gap-8">
+            <Link to="/" className="flex min-w-0 items-center gap-2 sm:gap-3 group">
+              <div className="h-11 w-11 shrink-0 rounded-lg bg-gradient-to-br from-neon-cyan to-neon-magenta flex items-center justify-center group-hover:scale-105 transition-transform">
                 <Eye className="text-white" size={20} />
               </div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-neon-cyan to-neon-magenta bg-clip-text text-transparent">
+              <h1 className="truncate text-xl sm:text-2xl font-bold bg-gradient-to-r from-neon-cyan to-neon-magenta bg-clip-text text-transparent">
                 MarketEye
               </h1>
             </Link>
@@ -97,10 +97,20 @@ export function Navbar({ transparent = false, showAuthButtons = true }: NavbarPr
                 </>
               ) : (
                 <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => navigate('/login')}
+                    className="sm:hidden shrink-0"
+                    title="Sign in"
+                    aria-label="Sign in"
+                  >
+                    <LogIn size={22} />
+                  </Button>
                   <Button 
                     variant="ghost" 
                     onClick={() => navigate('/login')}
-                    className="hidden sm:flex"
+                    className="hidden sm:inline-flex"
                   >
                     <LogIn size={16} className="mr-2" />
                     Sign In
@@ -108,9 +118,11 @@ export function Navbar({ transparent = false, showAuthButtons = true }: NavbarPr
                   <Button 
                     variant="neon" 
                     onClick={() => navigate('/register')}
+                    className="shrink-0 px-3 sm:px-4"
                   >
-                    <UserPlus size={16} className="mr-2" />
-                    Get Started
+                    <UserPlus size={16} className="sm:mr-2" />
+                    <span className="sm:hidden">Start</span>
+                    <span className="hidden sm:inline">Get Started</span>
                   </Button>
                 </>
               )}
