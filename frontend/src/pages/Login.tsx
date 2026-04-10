@@ -53,14 +53,12 @@ export function Login() {
   };
 
   return (
-    <div className="min-h-dvh bg-cyber-darker cyber-grid-bg flex flex-col">
-      {/* Navbar */}
+    <div className="min-h-dvh bg-background cyber-grid-bg flex flex-col">
       <Navbar transparent />
 
-      {/* Background effects */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-96 h-96 bg-neon-cyan/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-neon-magenta/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-20 left-10 w-96 h-96 bg-[#0071e3]/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-violet-400/10 rounded-full blur-3xl" />
       </div>
 
       <div className="flex-1 flex items-center justify-center p-6">
@@ -72,10 +70,8 @@ export function Login() {
           className="hidden md:flex flex-col justify-center"
         >
           <div className="mb-8">
-            <h1 className="text-6xl font-bold mb-4">
-              <span className="bg-gradient-to-r from-neon-cyan via-neon-magenta to-neon-cyan bg-clip-text text-transparent animate-gradient">
-                MarketEye
-              </span>
+            <h1 className="text-6xl font-semibold tracking-tight mb-4 text-foreground">
+              Market<span className="text-[#0071e3]">Eye</span>
             </h1>
             <p className="text-xl text-muted-foreground mb-8">
               24/7 Investment Watcher
@@ -84,8 +80,8 @@ export function Login() {
 
           <div className="space-y-6">
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-lg bg-neon-cyan/20 flex items-center justify-center">
-                <Eye className="text-neon-cyan" size={24} />
+              <div className="w-12 h-12 rounded-2xl bg-[#0071e3]/10 flex items-center justify-center">
+                <Eye className="text-[#0071e3]" size={24} />
               </div>
               <div>
                 <h3 className="text-lg font-semibold mb-1">Real-time Monitoring</h3>
@@ -96,8 +92,8 @@ export function Login() {
             </div>
 
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-lg bg-neon-magenta/20 flex items-center justify-center">
-                <TrendingUp className="text-neon-magenta" size={24} />
+              <div className="w-12 h-12 rounded-2xl bg-violet-500/10 flex items-center justify-center">
+                <TrendingUp className="text-violet-600" size={24} />
               </div>
               <div>
                 <h3 className="text-lg font-semibold mb-1">Smart Alerts</h3>
@@ -108,8 +104,8 @@ export function Login() {
             </div>
 
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-lg bg-neon-lime/20 flex items-center justify-center">
-                <Shield className="text-neon-lime" size={24} />
+              <div className="w-12 h-12 rounded-2xl bg-[#34c759]/10 flex items-center justify-center">
+                <Shield className="text-[#34c759]" size={24} />
               </div>
               <div>
                 <h3 className="text-lg font-semibold mb-1">Secure & Private</h3>
@@ -127,9 +123,9 @@ export function Login() {
           animate={{ opacity: 1, x: 0 }}
           className="flex items-center"
         >
-          <Card className="w-full glass border-neon-cyan/30">
+          <Card className="w-full border-black/[0.06] shadow-lg bg-white/95">
             <CardHeader>
-              <CardTitle className="text-2xl text-neon-cyan">Welcome Back</CardTitle>
+              <CardTitle className="text-2xl text-foreground">Welcome back</CardTitle>
               <CardDescription>
                 Sign in to your MarketEye account
               </CardDescription>
@@ -172,7 +168,7 @@ export function Login() {
 
                 <Button
                   type="submit"
-                  variant="neon"
+                  variant="default"
                   className="w-full"
                   disabled={loading}
                 >
@@ -181,7 +177,7 @@ export function Login() {
 
                 <div className="text-center text-sm text-muted-foreground">
                   Don't have an account?{' '}
-                  <Link to="/register" className="text-neon-cyan hover:underline">
+                  <Link to="/register" className="text-[#0071e3] hover:underline">
                     Sign up
                   </Link>
                 </div>

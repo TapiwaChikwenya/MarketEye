@@ -66,14 +66,12 @@ export function Register() {
   };
 
   return (
-    <div className="min-h-dvh bg-cyber-darker cyber-grid-bg flex flex-col">
-      {/* Navbar */}
+    <div className="min-h-dvh bg-background cyber-grid-bg flex flex-col">
       <Navbar transparent />
 
-      {/* Background effects */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-96 h-96 bg-neon-cyan/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-neon-magenta/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-20 left-10 w-96 h-96 bg-[#0071e3]/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-violet-400/10 rounded-full blur-3xl" />
       </div>
 
       <div className="flex-1 flex items-center justify-center p-6">
@@ -82,10 +80,10 @@ export function Register() {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md relative z-10"
       >
-        <Card className="glass border-neon-cyan/30">
+        <Card className="border-black/[0.06] shadow-lg bg-white/95">
           <CardHeader className="text-center">
-            <CardTitle className="text-3xl bg-gradient-to-r from-neon-cyan to-neon-magenta bg-clip-text text-transparent mb-2">
-              Join MarketEye
+            <CardTitle className="text-3xl font-semibold tracking-tight text-foreground mb-2">
+              Join Market<span className="text-[#0071e3]">Eye</span>
             </CardTitle>
             <CardDescription>
               Start monitoring your investments 24/7
@@ -156,7 +154,7 @@ export function Register() {
 
               <Button
                 type="submit"
-                variant="neon"
+                variant="default"
                 className="w-full"
                 disabled={loading}
               >
@@ -165,7 +163,7 @@ export function Register() {
 
               <div className="text-center text-sm text-muted-foreground">
                 Already have an account?{' '}
-                <Link to="/login" className="text-neon-cyan hover:underline">
+                <Link to="/login" className="text-[#0071e3] hover:underline">
                   Sign in
                 </Link>
               </div>

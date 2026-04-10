@@ -530,34 +530,34 @@ export function Dashboard() {
   };
 
   return (
-    <div className="min-h-dvh bg-cyber-darker cyber-grid-bg">
+    <div className="min-h-dvh bg-background cyber-grid-bg">
       {/* Header */}
       <motion.header
         initial={{ y: -100 }}
         animate={{ y: 0 }}
-        className="sticky top-0 z-50 glass border-b border-neon-cyan/20"
+        className="sticky top-0 z-50 border-b border-black/[0.06] bg-white/90 backdrop-blur-xl"
       >
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             {/* Logo and Navigation */}
             <div className="flex items-center gap-6">
               <Link to="/" className="flex items-center gap-3 group">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-neon-cyan to-neon-magenta flex items-center justify-center group-hover:scale-105 transition-transform">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#0071e3] to-[#5856d6] flex items-center justify-center group-hover:scale-105 transition-transform">
                   <Eye className="text-white" size={20} />
                 </div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-neon-cyan to-neon-magenta bg-clip-text text-transparent">
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-[#0071e3] to-[#5856d6] bg-clip-text text-transparent">
                   MarketEye
                 </h1>
               </Link>
               <div className="hidden md:flex items-center gap-2">
-                <div className="w-2 h-2 bg-neon-cyan rounded-full animate-pulse" />
-                <span className="text-sm text-neon-cyan">Live</span>
+                <div className="w-2 h-2 bg-[#0071e3] rounded-full animate-pulse" />
+                <span className="text-sm text-[#0071e3]">Live</span>
               </div>
               {/* Navigation Links */}
-              <nav className="hidden md:flex items-center gap-4 ml-4 pl-4 border-l border-neon-cyan/20">
+              <nav className="hidden md:flex items-center gap-4 ml-4 pl-4 border-l border-black/[0.06]">
                 <Link 
                   to="/" 
-                  className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-neon-cyan transition-colors"
+                  className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-[#0071e3] transition-colors"
                 >
                   <Home size={16} />
                   Home
@@ -577,9 +577,9 @@ export function Dashboard() {
             {/* Action Buttons */}
             <div className="flex items-center gap-2">
               {user?.email && (
-                <div className="hidden lg:flex items-center px-3 py-1.5 rounded-md border border-neon-cyan/20 bg-cyber-dark/40 text-xs text-muted-foreground">
+                <div className="hidden lg:flex items-center px-3 py-1.5 rounded-md border border-black/[0.06] bg-muted/40 text-xs text-muted-foreground">
                   Signed in as&nbsp;
-                  <span className="text-neon-cyan font-medium">{user.email}</span>
+                  <span className="text-[#0071e3] font-medium">{user.email}</span>
                 </div>
               )}
               <Button 
@@ -608,7 +608,7 @@ export function Dashboard() {
               >
                 <BellRing size={20} />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-neon-magenta rounded-full text-xs flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#ff3b30] rounded-full text-xs flex items-center justify-center">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
@@ -622,7 +622,7 @@ export function Dashboard() {
               >
                 <Bell size={20} />
                 {alerts.filter(a => a.is_active).length > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-neon-cyan rounded-full text-xs flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#0071e3] rounded-full text-xs flex items-center justify-center">
                     {alerts.filter(a => a.is_active).length}
                   </span>
                 )}
@@ -652,7 +652,7 @@ export function Dashboard() {
             className="mb-6"
           >
             <h2 className="text-xl text-muted-foreground">
-              Welcome, <span className="text-neon-cyan font-semibold">{user.name || user.email}</span>
+              Welcome, <span className="text-[#0071e3] font-semibold">{user.name || user.email}</span>
             </h2>
             {user.name && <p className="text-sm text-muted-foreground">{user.email}</p>}
           </motion.div>
@@ -665,43 +665,43 @@ export function Dashboard() {
           transition={{ delay: 0.1 }}
           className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8"
         >
-          <Card className="glass border-neon-cyan/30">
+          <Card className="border border-black/[0.06] bg-white shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
-                <TrendingUp className="text-neon-cyan" size={16} />
+                <TrendingUp className="text-[#0071e3]" size={16} />
                 Gainers
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-neon-cyan">{marketSummary.gainers}</div>
+              <div className="text-3xl font-bold text-[#0071e3]">{marketSummary.gainers}</div>
             </CardContent>
           </Card>
 
-          <Card className="glass border-neon-magenta/30">
+          <Card className="border border-[#ff3b30]/20 bg-white shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
-                <TrendingDown className="text-neon-magenta" size={16} />
+                <TrendingDown className="text-[#ff3b30]" size={16} />
                 Losers
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-neon-magenta">{marketSummary.losers}</div>
+              <div className="text-3xl font-bold text-[#ff3b30]">{marketSummary.losers}</div>
             </CardContent>
           </Card>
 
-          <Card className="glass border-neon-lime/30">
+          <Card className="border border-[#34c759]/25 bg-white shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
-                <Bell className="text-neon-lime" size={16} />
+                <Bell className="text-[#34c759]" size={16} />
                 Active Alerts
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-neon-lime">{alerts.filter(a => a.is_active).length}</div>
+              <div className="text-3xl font-bold text-[#34c759]">{alerts.filter(a => a.is_active).length}</div>
             </CardContent>
           </Card>
 
-          <Card className="glass border-yellow-500/30">
+          <Card className="border border-amber-200/80 bg-white shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
                 <Star className="text-yellow-500" size={16} />
@@ -748,22 +748,22 @@ export function Dashboard() {
                     {trackedAssets.map((asset) => (
                       <div key={asset.symbol} className="relative group">
                         <Button
-                          variant={selectedChartAsset?.symbol === asset.symbol ? 'neon' : 'ghost'}
+                          variant={selectedChartAsset?.symbol === asset.symbol ? 'default' : 'ghost'}
                           size="sm"
                           onClick={() => setSelectedChartAsset(asset)}
                           className="pr-8"
                         >
                           <span className={cn(
                             "w-2 h-2 rounded-full mr-2",
-                            asset.asset_type === 'CRYPTO' ? 'bg-neon-magenta' : 
-                            asset.asset_type === 'MUTUAL_FUND' || asset.asset_type === 'ETF' ? 'bg-neon-lime' : 
-                            'bg-neon-cyan'
+                            asset.asset_type === 'CRYPTO' ? 'bg-violet-500' : 
+                            asset.asset_type === 'MUTUAL_FUND' || asset.asset_type === 'ETF' ? 'bg-[#34c759]' : 
+                            'bg-[#0071e3]'
                           )} />
                           {asset.symbol}
                           {asset.change_percent_24h && (
                             <span className={cn(
                               "ml-2 text-xs",
-                              parseFloat(asset.change_percent_24h) >= 0 ? 'text-neon-lime' : 'text-neon-magenta'
+                              parseFloat(asset.change_percent_24h) >= 0 ? 'text-[#34c759]' : 'text-[#ff3b30]'
                             )}>
                               {parseFloat(asset.change_percent_24h) >= 0 ? '+' : ''}
                               {parseFloat(asset.change_percent_24h).toFixed(1)}%
@@ -804,14 +804,14 @@ export function Dashboard() {
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="flex gap-2">
             <Button
-              variant={activeTab === 'trending' ? 'neon' : 'ghost'}
+              variant={activeTab === 'trending' ? 'default' : 'ghost'}
               onClick={() => setActiveTab('trending')}
             >
               <TrendingUp size={16} className="mr-2" />
               Trending
             </Button>
             <Button
-              variant={activeTab === 'tracked' ? 'neon' : 'ghost'}
+              variant={activeTab === 'tracked' ? 'default' : 'ghost'}
               onClick={() => setActiveTab('tracked')}
               disabled={trackedAssets.length === 0}
             >
@@ -873,7 +873,7 @@ export function Dashboard() {
               className="pl-10"
             />
           </div>
-          <Button variant="neon" onClick={() => setShowSearch(true)}>
+          <Button variant="default" onClick={() => setShowSearch(true)}>
             <Plus size={16} className="mr-2" />
             Find & Track Assets
           </Button>
@@ -886,7 +886,7 @@ export function Dashboard() {
           transition={{ delay: 0.3 }}
         >
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-neon-cyan">
+            <h2 className="text-2xl font-bold text-[#0071e3]">
               {activeTab === 'trending' ? 'Market Overview' : 'Your Portfolio'}
             </h2>
             {lastUpdate && (
@@ -909,10 +909,10 @@ export function Dashboard() {
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {[...Array(8)].map((_, index) => (
-                <div key={index} className="glass rounded-lg p-6 animate-pulse">
-                  <div className="h-6 bg-neon-cyan/20 rounded w-1/2 mb-4"></div>
-                  <div className="h-8 bg-neon-cyan/10 rounded w-3/4 mb-2"></div>
-                  <div className="h-4 bg-neon-cyan/10 rounded w-1/4"></div>
+                <div key={index} className="rounded-2xl border border-black/[0.06] bg-white p-6 animate-pulse">
+                  <div className="h-6 bg-[#0071e3]/20 rounded w-1/2 mb-4"></div>
+                  <div className="h-8 bg-[#0071e3]/10 rounded w-3/4 mb-2"></div>
+                  <div className="h-4 bg-[#0071e3]/10 rounded w-1/4"></div>
                 </div>
               ))}
             </div>
@@ -953,13 +953,13 @@ export function Dashboard() {
                         />
                       </div>
                       <div className="absolute top-2 right-2 w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center">
-                        <Star size={14} className="text-cyber-darker" fill="currentColor" />
+                        <Star size={14} className="text-amber-500" fill="currentColor" />
                       </div>
                       <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-8 w-8 p-0 bg-cyber-darker/80"
+                          className="h-8 w-8 p-0 bg-foreground text-background hover:bg-foreground/90"
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedChartAsset(tracked);
@@ -971,7 +971,7 @@ export function Dashboard() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-8 w-8 p-0 bg-cyber-darker/80"
+                          className="h-8 w-8 p-0 bg-foreground text-background hover:bg-foreground/90"
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedAsset(fullAsset as Asset);
@@ -984,7 +984,7 @@ export function Dashboard() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-8 w-8 p-0 bg-cyber-darker/80 hover:bg-destructive/20"
+                          className="h-8 w-8 p-0 bg-foreground text-background hover:bg-foreground/90 hover:bg-destructive/20"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleUntrackAsset(tracked.symbol);
@@ -1018,14 +1018,14 @@ export function Dashboard() {
                   />
                   {isAssetTracked(asset.symbol) && (
                     <div className="absolute top-2 right-2 w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center">
-                      <Star size={14} className="text-cyber-darker" fill="currentColor" />
+                      <Star size={14} className="text-amber-500" fill="currentColor" />
                     </div>
                   )}
                   <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-8 w-8 p-0 bg-cyber-darker/80"
+                      className="h-8 w-8 p-0 bg-foreground text-background hover:bg-foreground/90"
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedAsset(asset);
@@ -1039,7 +1039,7 @@ export function Dashboard() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-8 w-8 p-0 bg-cyber-darker/80 hover:bg-destructive/20"
+                        className="h-8 w-8 p-0 bg-foreground text-background hover:bg-foreground/90 hover:bg-destructive/20"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleUntrackAsset(asset.symbol);
@@ -1052,7 +1052,7 @@ export function Dashboard() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-8 w-8 p-0 bg-cyber-darker/80"
+                        className="h-8 w-8 p-0 bg-foreground text-background hover:bg-foreground/90"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleTrackAsset(asset);
@@ -1082,7 +1082,7 @@ export function Dashboard() {
                 Use the search button to find and track assets.
               </p>
               <Button 
-                variant="neon" 
+                variant="default" 
                 className="mt-4"
                 onClick={() => setShowSearch(true)}
               >
@@ -1095,8 +1095,8 @@ export function Dashboard() {
 
         {/* Background decorations */}
         <div className="fixed top-0 left-0 w-full h-full pointer-events-none overflow-hidden -z-10">
-          <div className="absolute top-20 left-10 w-64 h-64 bg-neon-cyan/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-neon-magenta/5 rounded-full blur-3xl" />
+          <div className="absolute top-20 left-10 w-64 h-64 bg-[#0071e3]/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-violet-400/10 rounded-full blur-3xl" />
         </div>
       </div>
 
@@ -1132,14 +1132,14 @@ export function Dashboard() {
                 {searchResults.map((result) => (
                   <div
                     key={result.symbol}
-                    className="flex items-center justify-between p-3 rounded-lg bg-cyber-dark hover:bg-cyber-dark/80 transition-colors"
+                    className="flex items-center justify-between p-3 rounded-lg bg-muted/70 hover:bg-muted/80 transition-colors"
                   >
                     <div className="flex items-center gap-3">
                       <div className={cn(
                         "w-10 h-10 rounded-lg flex items-center justify-center",
-                        result.asset_type === 'CRYPTO' ? 'bg-neon-magenta/20' :
-                        result.asset_type === 'MUTUAL_FUND' || result.asset_type === 'ETF' ? 'bg-neon-lime/20' :
-                        'bg-neon-cyan/20'
+                        result.asset_type === 'CRYPTO' ? 'bg-violet-500/15' :
+                        result.asset_type === 'MUTUAL_FUND' || result.asset_type === 'ETF' ? 'bg-[#34c759]/20' :
+                        'bg-[#0071e3]/20'
                       )}>
                         {getAssetTypeIcon(result.asset_type)}
                       </div>
@@ -1151,10 +1151,10 @@ export function Dashboard() {
                     <div className="flex items-center gap-2">
                       <span className={cn(
                         "text-xs px-2 py-1 rounded",
-                        result.asset_type === 'CRYPTO' ? 'bg-neon-magenta/20 text-neon-magenta' :
-                        result.asset_type === 'MUTUAL_FUND' ? 'bg-neon-lime/20 text-neon-lime' :
-                        result.asset_type === 'ETF' ? 'bg-green-500/20 text-green-400' :
-                        'bg-neon-cyan/20 text-neon-cyan'
+                        result.asset_type === 'CRYPTO' ? 'bg-violet-500/15 text-violet-700' :
+                        result.asset_type === 'MUTUAL_FUND' ? 'bg-[#34c759]/20 text-[#34c759]' :
+                        result.asset_type === 'ETF' ? 'bg-emerald-500/15 text-emerald-700' :
+                        'bg-[#0071e3]/20 text-[#0071e3]'
                       )}>
                         {result.asset_type}
                       </span>
@@ -1166,7 +1166,7 @@ export function Dashboard() {
                       ) : (
                         <Button
                           size="sm"
-                          variant="neon"
+                          variant="default"
                           onClick={() => handleTrackAsset(result)}
                         >
                           <Plus size={14} className="mr-1" />
@@ -1256,7 +1256,7 @@ export function Dashboard() {
             
             <TabsContent value="notifications" className="space-y-4 mt-4">
               {/* Browser Push Notifications */}
-              <div className="p-4 rounded-lg bg-cyber-dark space-y-3">
+              <div className="p-4 rounded-lg bg-muted/70 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <Label className="text-base">Browser Push Notifications</Label>
@@ -1266,13 +1266,13 @@ export function Dashboard() {
                   </div>
                   <div className={cn(
                     "px-2 py-1 rounded text-xs",
-                    pushEnabled ? "bg-neon-lime/20 text-neon-lime" : "bg-yellow-500/20 text-yellow-500"
+                    pushEnabled ? "bg-[#34c759]/20 text-[#34c759]" : "bg-yellow-500/20 text-yellow-500"
                   )}>
                     {pushEnabled ? 'Enabled' : 'Disabled'}
                   </div>
                 </div>
                 {!pushEnabled && pushSupported && (
-                  <Button variant="neon" size="sm" onClick={handleEnablePushNotifications}>
+                  <Button variant="default" size="sm" onClick={handleEnablePushNotifications}>
                     <BellRing size={14} className="mr-2" />
                     Enable Push Notifications
                   </Button>
@@ -1311,7 +1311,7 @@ export function Dashboard() {
                 </Select>
               </div>
               
-              <div className="flex items-center justify-between p-4 rounded-lg bg-cyber-dark">
+              <div className="flex items-center justify-between p-4 rounded-lg bg-muted/70">
                 <div>
                   <Label>Quiet Hours</Label>
                   <p className="text-sm text-muted-foreground">Pause notifications during set hours</p>
@@ -1352,7 +1352,7 @@ export function Dashboard() {
                   placeholder="New watchlist name"
                   onKeyDown={(e) => e.key === 'Enter' && handleCreateWatchlist()}
                 />
-                <Button onClick={handleCreateWatchlist} variant="neon">
+                <Button onClick={handleCreateWatchlist} variant="default">
                   <Plus size={16} />
                 </Button>
               </div>
@@ -1364,7 +1364,7 @@ export function Dashboard() {
                   </p>
                 ) : (
                   watchlists.map((watchlist) => (
-                    <div key={watchlist.id} className="flex items-center justify-between p-3 rounded-lg bg-cyber-dark">
+                    <div key={watchlist.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/70">
                       <div 
                         className="flex-1 cursor-pointer"
                         onClick={() => handleViewWatchlist(watchlist.id)}
@@ -1405,7 +1405,7 @@ export function Dashboard() {
           
           <DialogFooter>
             <Button variant="ghost" onClick={() => setShowSettings(false)}>Cancel</Button>
-            <Button variant="neon" onClick={handleSaveSettings}>Save Changes</Button>
+            <Button variant="default" onClick={handleSaveSettings}>Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1434,11 +1434,11 @@ export function Dashboard() {
               </div>
             ) : (
               alerts.map((alert) => (
-                <div key={alert.id} className="flex items-center justify-between p-4 rounded-lg bg-cyber-dark">
+                <div key={alert.id} className="flex items-center justify-between p-4 rounded-lg bg-muted/70">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{alert.name || 'Price Alert'}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded ${alert.is_active ? 'bg-neon-cyan/20 text-neon-cyan' : 'bg-gray-500/20 text-gray-400'}`}>
+                      <span className={`text-xs px-2 py-0.5 rounded ${alert.is_active ? 'bg-[#0071e3]/20 text-[#0071e3]' : 'bg-gray-500/20 text-gray-400'}`}>
                         {alert.is_active ? 'Active' : 'Paused'}
                       </span>
                     </div>
@@ -1482,14 +1482,14 @@ export function Dashboard() {
           
           {selectedAsset && (
             <div className="space-y-4 mt-4">
-              <div className="p-4 rounded-lg bg-cyber-dark">
+              <div className="p-4 rounded-lg bg-muted/70">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className={cn(
                       "w-12 h-12 rounded-lg flex items-center justify-center text-lg",
-                      selectedAsset.asset_type === 'CRYPTO' ? 'bg-neon-magenta/20 text-neon-magenta' :
-                      selectedAsset.asset_type === 'MUTUAL_FUND' || selectedAsset.asset_type === 'ETF' ? 'bg-neon-lime/20 text-neon-lime' :
-                      'bg-neon-cyan/20 text-neon-cyan'
+                      selectedAsset.asset_type === 'CRYPTO' ? 'bg-violet-500/15 text-violet-700' :
+                      selectedAsset.asset_type === 'MUTUAL_FUND' || selectedAsset.asset_type === 'ETF' ? 'bg-[#34c759]/20 text-[#34c759]' :
+                      'bg-[#0071e3]/20 text-[#0071e3]'
                     )}>
                       {getAssetTypeIcon(selectedAsset.asset_type)}
                     </div>
@@ -1502,7 +1502,7 @@ export function Dashboard() {
                     <div className="text-lg font-semibold">
                       ${parseFloat(selectedAsset.current_price || '0').toLocaleString()}
                     </div>
-                    <div className={`text-sm ${parseFloat(selectedAsset.change_percent_24h || '0') >= 0 ? 'text-neon-lime' : 'text-neon-magenta'}`}>
+                    <div className={`text-sm ${parseFloat(selectedAsset.change_percent_24h || '0') >= 0 ? 'text-[#34c759]' : 'text-[#ff3b30]'}`}>
                       {parseFloat(selectedAsset.change_percent_24h || '0') >= 0 ? '+' : ''}
                       {parseFloat(selectedAsset.change_percent_24h || '0').toFixed(2)}%
                     </div>
@@ -1512,7 +1512,7 @@ export function Dashboard() {
               
               <div className="grid grid-cols-1 gap-2">
                 <Button
-                  variant="neon"
+                  variant="default"
                   className="w-full"
                   onClick={() => handleTrackAsset(selectedAsset)}
                   disabled={isAssetTracked(selectedAsset.symbol)}
@@ -1560,9 +1560,9 @@ export function Dashboard() {
           
           {selectedAsset && (
             <div className="space-y-4 mt-4">
-              <div className="p-4 rounded-lg bg-cyber-dark">
+              <div className="p-4 rounded-lg bg-muted/70">
                 <div className="text-sm text-muted-foreground">Current Price</div>
-                <div className="text-2xl font-bold text-neon-cyan">
+                <div className="text-2xl font-bold text-[#0071e3]">
                   ${parseFloat(selectedAsset.current_price || '0').toLocaleString()}
                 </div>
               </div>
@@ -1637,7 +1637,7 @@ export function Dashboard() {
           
           <DialogFooter>
             <Button variant="ghost" onClick={() => setShowCreateAlert(false)}>Cancel</Button>
-            <Button variant="neon" onClick={handleCreateAlert}>Create Alert</Button>
+            <Button variant="default" onClick={handleCreateAlert}>Create Alert</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1657,11 +1657,11 @@ export function Dashboard() {
           
           <div className="space-y-4 mt-4">
             {/* Push notification status */}
-            <div className="p-4 rounded-lg bg-cyber-dark flex items-center justify-between">
+            <div className="p-4 rounded-lg bg-muted/70 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className={cn(
                   "w-3 h-3 rounded-full",
-                  pushEnabled ? "bg-neon-lime" : "bg-yellow-500"
+                  pushEnabled ? "bg-[#34c759]" : "bg-yellow-500"
                 )} />
                 <div>
                   <div className="font-medium">Browser Push Notifications</div>
@@ -1675,7 +1675,7 @@ export function Dashboard() {
                 </div>
               </div>
               {pushSupported && !pushEnabled && (
-                <Button variant="neon" size="sm" onClick={handleEnablePushNotifications}>
+                <Button variant="default" size="sm" onClick={handleEnablePushNotifications}>
                   Enable
                 </Button>
               )}
@@ -1716,15 +1716,15 @@ export function Dashboard() {
                     key={notif.id} 
                     className={cn(
                       "flex items-start gap-3 p-3 rounded-lg transition-colors cursor-pointer",
-                      notif.read ? "bg-cyber-dark/50" : "bg-cyber-dark border-l-2 border-neon-cyan"
+                      notif.read ? "bg-muted/50" : "bg-muted/70 border-l-2 border-[#0071e3]"
                     )}
                     onClick={() => markAsRead(notif.id)}
                   >
                     <div className={cn(
                       "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
-                      notif.type === 'price_alert' ? "bg-neon-magenta/20 text-neon-magenta" :
-                      notif.type === 'system' ? "bg-neon-cyan/20 text-neon-cyan" :
-                      "bg-neon-lime/20 text-neon-lime"
+                      notif.type === 'price_alert' ? "bg-amber-500/15 text-amber-700" :
+                      notif.type === 'system' ? "bg-[#0071e3]/20 text-[#0071e3]" :
+                      "bg-[#34c759]/20 text-[#34c759]"
                     )}>
                       {notif.type === 'price_alert' ? <AlertTriangle size={14} /> :
                        notif.type === 'system' ? <Settings size={14} /> :
@@ -1739,11 +1739,11 @@ export function Dashboard() {
                       </div>
                       <div className="text-sm text-muted-foreground mt-1">{notif.message}</div>
                       {notif.symbol && (
-                        <div className="text-xs text-neon-cyan mt-1">{notif.symbol}</div>
+                        <div className="text-xs text-[#0071e3] mt-1">{notif.symbol}</div>
                       )}
                     </div>
                     {!notif.read && (
-                      <div className="w-2 h-2 bg-neon-cyan rounded-full flex-shrink-0" />
+                      <div className="w-2 h-2 bg-[#0071e3] rounded-full flex-shrink-0" />
                     )}
                   </div>
                 ))}
@@ -1771,7 +1771,7 @@ export function Dashboard() {
                   Create a watchlist in Settings first.
                 </p>
                 <Button 
-                  variant="neon" 
+                  variant="default" 
                   className="mt-4"
                   onClick={() => {
                     setShowAddToWatchlist(false);
@@ -1825,13 +1825,13 @@ export function Dashboard() {
             ) : (
               <div className="space-y-2">
                 {selectedWatchlist?.assets?.map((asset) => (
-                  <div key={asset.id} className="flex items-center justify-between p-3 rounded-lg bg-cyber-dark">
+                  <div key={asset.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/70">
                     <div className="flex items-center gap-3">
                       <div className={cn(
                         "w-10 h-10 rounded-lg flex items-center justify-center",
-                        asset.asset_type === 'CRYPTO' ? 'bg-neon-magenta/20' :
-                        asset.asset_type === 'MUTUAL_FUND' || asset.asset_type === 'ETF' ? 'bg-neon-lime/20' :
-                        'bg-neon-cyan/20'
+                        asset.asset_type === 'CRYPTO' ? 'bg-violet-500/15' :
+                        asset.asset_type === 'MUTUAL_FUND' || asset.asset_type === 'ETF' ? 'bg-[#34c759]/20' :
+                        'bg-[#0071e3]/20'
                       )}>
                         {getAssetTypeIcon(asset.asset_type)}
                       </div>
@@ -1847,7 +1847,7 @@ export function Dashboard() {
                           {asset.change_percent_24h && (
                             <div className={cn(
                               "text-sm",
-                              parseFloat(asset.change_percent_24h) >= 0 ? 'text-neon-lime' : 'text-neon-magenta'
+                              parseFloat(asset.change_percent_24h) >= 0 ? 'text-[#34c759]' : 'text-[#ff3b30]'
                             )}>
                               {parseFloat(asset.change_percent_24h) >= 0 ? '+' : ''}
                               {parseFloat(asset.change_percent_24h).toFixed(2)}%

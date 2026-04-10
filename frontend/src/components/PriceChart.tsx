@@ -98,7 +98,7 @@ export function PriceChart({
 
   const priceChange = parseFloat(changePercent || '0');
   const isPositive = priceChange >= 0;
-  const chartColor = isPositive ? '#00ffff' : '#ff00ff';
+  const chartColor = isPositive ? '#0071e3' : '#ff3b30';
 
   // Calculate chart stats
   const minPrice = data.length > 0 ? Math.min(...data.map(d => d.close)) : 0;
@@ -142,15 +142,15 @@ export function PriceChart({
   }
 
   return (
-    <Card className="glass border-neon-cyan/30 p-6">
+    <Card className="border-black/[0.06] bg-white p-6 shadow-sm">
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
           <div className="flex items-center gap-3">
-            <h3 className="text-2xl font-bold text-neon-cyan">{symbol}</h3>
+            <h3 className="text-2xl font-semibold text-foreground">{symbol}</h3>
             <span className={cn(
-              "px-2 py-0.5 rounded text-xs font-medium",
-              assetType === 'CRYPTO' ? 'bg-neon-magenta/20 text-neon-magenta' : 'bg-neon-cyan/20 text-neon-cyan'
+              "px-2 py-0.5 rounded-md text-xs font-medium",
+              assetType === 'CRYPTO' ? 'bg-violet-500/15 text-violet-700' : 'bg-[#0071e3]/10 text-[#0071e3]'
             )}>
               {assetType}
             </span>
@@ -163,7 +163,7 @@ export function PriceChart({
           </div>
           <div className={cn(
             "flex items-center justify-end gap-1 text-sm",
-            isPositive ? 'text-neon-lime' : 'text-neon-magenta'
+            isPositive ? 'text-[#34c759]' : 'text-[#ff3b30]'
           )}>
             {isPositive ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
             {isPositive ? '+' : ''}{priceChange.toFixed(2)}% (24h)
@@ -176,7 +176,7 @@ export function PriceChart({
         {TIME_PERIODS.map((period) => (
           <Button
             key={period.value}
-            variant={selectedPeriod.value === period.value ? 'neon' : 'ghost'}
+            variant={selectedPeriod.value === period.value ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setSelectedPeriod(period)}
             className="px-3"
@@ -190,7 +190,7 @@ export function PriceChart({
       <div className="h-64 w-full">
         {loading ? (
           <div className="h-full flex items-center justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-neon-cyan" />
+            <Loader2 className="w-8 h-8 animate-spin text-[#0071e3]" />
           </div>
         ) : error ? (
           <div className="h-full flex items-center justify-center text-muted-foreground">
@@ -212,25 +212,26 @@ export function PriceChart({
               <XAxis
                 dataKey="timestamp"
                 tickFormatter={formatDate}
-                stroke="#666"
-                tick={{ fill: '#888', fontSize: 12 }}
-                axisLine={{ stroke: '#333' }}
-                tickLine={{ stroke: '#333' }}
+                stroke="#ccc"
+                tick={{ fill: '#86868b', fontSize: 12 }}
+                axisLine={{ stroke: '#d2d2d7' }}
+                tickLine={{ stroke: '#d2d2d7' }}
               />
               <YAxis
                 domain={['auto', 'auto']}
                 tickFormatter={(value) => formatPrice(value)}
-                stroke="#666"
-                tick={{ fill: '#888', fontSize: 12 }}
-                axisLine={{ stroke: '#333' }}
-                tickLine={{ stroke: '#333' }}
+                stroke="#ccc"
+                tick={{ fill: '#86868b', fontSize: 12 }}
+                axisLine={{ stroke: '#d2d2d7' }}
+                tickLine={{ stroke: '#d2d2d7' }}
                 width={80}
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: '#0a0a0f',
-                  border: '1px solid rgba(0, 255, 255, 0.3)',
-                  borderRadius: '8px',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid rgba(0, 0, 0, 0.08)',
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
                 }}
                 labelFormatter={(label) => new Date(label).toLocaleString()}
                 formatter={(value: number) => [formatPrice(value), 'Price']}
@@ -248,23 +249,23 @@ export function PriceChart({
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mt-4 pt-4 border-t border-neon-cyan/10">
+      <div className="grid grid-cols-4 gap-4 mt-4 pt-4 border-t border-black/[0.06]">
         <div>
           <div className="text-xs text-muted-foreground">Period Change</div>
           <div className={cn(
             "font-semibold",
-            periodChange >= 0 ? 'text-neon-lime' : 'text-neon-magenta'
+            periodChange >= 0 ? 'text-[#34c759]' : 'text-[#ff3b30]'
           )}>
             {periodChange >= 0 ? '+' : ''}{periodChange.toFixed(2)}%
           </div>
         </div>
         <div>
           <div className="text-xs text-muted-foreground">High</div>
-          <div className="font-semibold text-neon-lime">{formatPrice(maxPrice)}</div>
+          <div className="font-semibold text-[#34c759]">{formatPrice(maxPrice)}</div>
         </div>
         <div>
           <div className="text-xs text-muted-foreground">Low</div>
-          <div className="font-semibold text-neon-magenta">{formatPrice(minPrice)}</div>
+          <div className="font-semibold text-muted-foreground">{formatPrice(minPrice)}</div>
         </div>
         <div>
           <div className="text-xs text-muted-foreground">Volume</div>

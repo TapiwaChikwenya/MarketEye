@@ -50,21 +50,21 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Futuristic neon colors
+        /* Legacy names kept for fewer TSX edits; values are Apple-like */
         neon: {
-          cyan: '#00ffff',
-          magenta: '#ff00ff',
-          lime: '#00ff00',
-          pink: '#ff1493',
-          blue: '#00bfff',
-          purple: '#bf00ff',
+          cyan: '#0071e3',
+          magenta: '#ff3b30',
+          lime: '#34c759',
+          pink: '#ff375f',
+          blue: '#0071e3',
+          purple: '#5856d6',
         },
         cyber: {
-          dark: '#0a0e27',
-          darker: '#050814',
-          purple: '#9333ea',
-          pink: '#ec4899',
-          cyan: '#06b6d4',
+          dark: '#f5f5f7',
+          darker: '#fbfbfd',
+          purple: '#5856d6',
+          pink: '#ff375f',
+          cyan: '#0071e3',
         }
       },
       borderRadius: {
@@ -82,8 +82,8 @@ export default {
           to: { height: 0 },
         },
         "glow": {
-          "0%, 100%": { boxShadow: "0 0 20px rgba(0, 255, 255, 0.5)" },
-          "50%": { boxShadow: "0 0 30px rgba(0, 255, 255, 0.8)" },
+          "0%, 100%": { boxShadow: "0 2px 8px rgba(0, 113, 227, 0.2)" },
+          "50%": { boxShadow: "0 4px 16px rgba(0, 113, 227, 0.28)" },
         },
         "pulse-glow": {
           "0%, 100%": { opacity: 1 },
@@ -98,7 +98,8 @@ export default {
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-        'cyber-grid': "linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px)",
+        'cyber-grid':
+          "linear-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 0, 0, 0.04) 1px, transparent 1px)",
       },
       backgroundSize: {
         'grid': '50px 50px',
