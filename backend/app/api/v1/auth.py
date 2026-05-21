@@ -35,27 +35,17 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-_PLACEHOLDER_SMTP_VALUES = frozenset(
-    {
-        "your-email@gmail.com",
-        "your-app-specific-password",
-        "your-email",
-        "changeme",
-        "password",
-    }
-)
+def _email_configured() -> bool:
+    """
+    True when a real-looking SendGrid API key is set in the environment.
 
-
-def _smtp_configured() -> bool:
-    user = (settings.SMTP_USER or "").strip()
-    password = (settings.SMTP_PASSWORD or "").strip()
-    if not user or not password:
-        return False
-    if user.lower() in _PLACEHOLDER_SMTP_VALUES or password.lower() in _PLACEHOLDER_SMTP_VALUES:
-        return False
-    if user.startswith("your-") or "example.com" in user:
-        return False
-    return True
+    SendGrid API keys always start with "SG." and are roughly 69 chars long.
+    Rejecting short or placeholder values keeps dev environments in demo
+    mode automatically, so /forgot-password still returns the reset link
+    in the JSON response when DEBUG=True.
+    """
+    key = (settings.SENDGRID_API_KEY or "").strip()
+    return key.startswith("SG.") and len(key) > 30
 
 
 def _dev_reset_link_allowed() -> bool:
@@ -130,7 +120,7 @@ async def forgot_password(
 ):
     """
     Request a password reset email. Response is identical whether or not the email exists.
-    When SMTP is not configured and DEBUG/development is on, includes reset_link for local testing.
+    When SendGrid is not configured and DEBUG/development is on, includes reset_link for local testing.
     """
     detail = (
         "If an account exists for this email, you will receive reset instructions shortly."
@@ -149,13 +139,41 @@ async def forgot_password(
             f"{settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES} minutes):\n\n{link}\n\n"
             "If you did not request this, you can ignore this email."
         )
-        html = (
-            f'<p>You requested a password reset.</p>'
-            f'<p><a href="{link}">Reset your password</a> '
-            f"(expires in {settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES} minutes).</p>"
-            f"<p>If you did not request this, ignore this email.</p>"
-        )
-        if _smtp_configured():
+        html = f"""
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f7f5f1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7f5f1;padding:40px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" style="max-width:560px;background:#fff;border-radius:12px;border:1px solid rgba(15,23,42,.06);">
+        <tr><td style="padding:32px 32px 0;">
+          <div style="display:inline-block;background:linear-gradient(135deg,#1d4ed8,#1e293b);padding:8px 14px;border-radius:8px;color:#fff;font-weight:600;font-size:14px;letter-spacing:.04em;">MarketEye</div>
+        </td></tr>
+        <tr><td style="padding:24px 32px;">
+          <h1 style="margin:0 0 12px;font-size:22px;color:#0f172a;font-weight:600;">Reset your password</h1>
+          <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#475569;">
+            We received a request to reset the password for your MarketEye account.
+            Click the button below to choose a new one. This link expires in
+            {settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES} minutes.
+          </p>
+          <a href="{link}" style="display:inline-block;background:#1d4ed8;color:#fff;text-decoration:none;font-weight:600;padding:12px 24px;border-radius:8px;font-size:15px;">Reset password</a>
+          <p style="margin:24px 0 0;font-size:13px;line-height:1.6;color:#94a3b8;">
+            Or paste this link into your browser:<br>
+            <a href="{link}" style="color:#1d4ed8;word-break:break-all;">{link}</a>
+          </p>
+        </td></tr>
+        <tr><td style="padding:16px 32px 28px;border-top:1px solid rgba(15,23,42,.06);">
+          <p style="margin:16px 0 0;font-size:12px;line-height:1.6;color:#94a3b8;">
+            Didn't request this? You can safely ignore the email - your password won't change.
+          </p>
+        </td></tr>
+      </table>
+      <p style="margin:16px 0 0;font-size:12px;color:#94a3b8;">&copy; MarketEye &middot; Not investment advice</p>
+    </td></tr>
+  </table>
+</body></html>
+""".strip()
+        if _email_configured():
             sent = await notification_service.send_email(user.email, subj, plain, html=html)
             if sent.get("status") != "sent":
                 logger.warning("Password reset email may not have been sent: %s", sent)
@@ -166,14 +184,14 @@ async def forgot_password(
                     )
         else:
             logger.info(
-                "Password reset for %s (SMTP not configured). Link: %s",
+                "Password reset for %s (SendGrid not configured). Link: %s",
                 user.email,
                 link,
             )
             if _dev_reset_link_allowed():
                 reset_link = link
                 detail = (
-                    "SMTP is not configured. Use the reset link below (development only)."
+                    "SendGrid is not configured. Use the reset link below (development only)."
                 )
 
     return ForgotPasswordResponse(detail=detail, reset_link=reset_link)
