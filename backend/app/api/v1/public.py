@@ -21,6 +21,13 @@ router = APIRouter()
 
 _trending_cache: Dict[str, Any] = {}
 _trending_cache_ts: float = 0.0
+_trending_cache_hits: int = 0
+_trending_cache_misses: int = 0
+
+
+def get_trending_cache_stats() -> Dict[str, int]:
+    """Counters for admin analytics (public /trending)."""
+    return {"hits": _trending_cache_hits, "misses": _trending_cache_misses}
 
 
 def _trending_cache_ttl_seconds() -> float:
@@ -88,10 +95,14 @@ async def get_trending_assets() -> Dict[str, Any]:
     """
     global _trending_cache, _trending_cache_ts
 
+    global _trending_cache_hits, _trending_cache_misses
+
     ttl = _trending_cache_ttl_seconds()
     if _trending_cache and (time.time() - _trending_cache_ts) < ttl:
+        _trending_cache_hits += 1
         return _trending_cache
 
+    _trending_cache_misses += 1
     result = await _fetch_trending_data()
     if result.get("stocks") or result.get("crypto"):
         _trending_cache = result

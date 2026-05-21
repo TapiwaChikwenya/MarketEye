@@ -54,4 +54,20 @@ export const authService = {
   isAuthenticated(): boolean {
     return !!localStorage.getItem('token');
   },
+
+  async forgotPassword(email: string): Promise<{ detail: string; reset_link?: string }> {
+    const response = await api.post<{ detail: string; reset_link?: string }>(
+      '/auth/forgot-password',
+      { email }
+    );
+    return response.data;
+  },
+
+  async resetPassword(token: string, newPassword: string): Promise<{ detail: string }> {
+    const response = await api.post<{ detail: string }>('/auth/reset-password', {
+      token,
+      new_password: newPassword,
+    });
+    return response.data;
+  },
 };

@@ -1,11 +1,12 @@
 """
 Main FastAPI application.
 """
+import time
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.v1 import auth, users, assets, watchlists, alerts, portfolio, public, tracked, notifications
+from app.api.v1 import auth, users, assets, watchlists, alerts, portfolio, public, tracked, notifications, admin
 from app.db.base import Base, engine
 import app.models  # Import all models to register them
 import logging
@@ -16,6 +17,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler - create tables on startup."""
+    app.state.started_at = time.time()
     logger.info("Creating database tables if they don't exist...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -69,6 +71,7 @@ app.include_router(alerts.router, prefix=f"{settings.API_V1_PREFIX}/alerts", tag
 app.include_router(portfolio.router, prefix=f"{settings.API_V1_PREFIX}/portfolio", tags=["Portfolio"])
 app.include_router(tracked.router, prefix=f"{settings.API_V1_PREFIX}/tracked", tags=["Tracked Assets"])
 app.include_router(notifications.router, prefix=f"{settings.API_V1_PREFIX}/notifications", tags=["Notifications"])
+app.include_router(admin.router, prefix=f"{settings.API_V1_PREFIX}/admin", tags=["Admin"])
 
 
 @app.get("/")

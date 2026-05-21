@@ -25,15 +25,14 @@ export function AssetTile({ asset, onClick }: AssetTileProps) {
     >
       <Card
         className={cn(
-          'relative overflow-hidden transition-shadow duration-300 border-black/[0.06] hover:shadow-md',
-          'bg-white',
-          isPositive ? 'hover:border-[#34c759]/30' : 'hover:border-[#ff3b30]/25'
+          'relative overflow-hidden border-border/80 bg-card transition-shadow duration-300 hover:shadow-md',
+          isPositive ? 'hover:border-success/30' : 'hover:border-destructive/25'
         )}
       >
         <div
           className={cn(
-            'absolute inset-0 opacity-0 transition-opacity duration-300 hover:opacity-100 pointer-events-none',
-            isPositive ? 'bg-[#34c759]/[0.06]' : 'bg-[#ff3b30]/[0.06]'
+            'pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 hover:opacity-100',
+            isPositive ? 'bg-success/[0.06]' : 'bg-destructive/[0.06]'
           )}
         />
 
@@ -45,8 +44,8 @@ export function AssetTile({ asset, onClick }: AssetTileProps) {
             </div>
             <div
               className={cn(
-                'flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border border-black/[0.08]',
-                isPositive ? 'bg-[#34c759]/10 text-[#1d1d1f]' : 'bg-[#ff3b30]/10 text-[#ff3b30]'
+                'flex items-center gap-1 rounded-full border border-border/80 px-2 py-1 text-xs font-medium',
+                isPositive ? 'bg-success/10 text-foreground' : 'bg-destructive/10 text-destructive'
               )}
             >
               {isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
@@ -60,7 +59,7 @@ export function AssetTile({ asset, onClick }: AssetTileProps) {
               <span
                 className={cn(
                   'text-sm font-medium',
-                  isPositive ? 'text-[#34c759]' : 'text-[#ff3b30]'
+                  isPositive ? 'text-success' : 'text-destructive'
                 )}
               >
                 {formatPercent(changePercent)}
@@ -69,9 +68,9 @@ export function AssetTile({ asset, onClick }: AssetTileProps) {
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-4 border-t border-black/[0.06]">
+          <div className="flex items-center justify-between border-t border-border/80 pt-4">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Activity size={14} className="text-[#0071e3]" />
+              <Activity size={14} className="text-primary" />
               <span>Live quote</span>
             </div>
           </div>

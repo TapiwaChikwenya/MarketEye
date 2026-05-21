@@ -46,3 +46,31 @@ def decode_access_token(token: str) -> Optional[dict]:
         return payload
     except JWTError:
         return None
+
+
+PASSWORD_RESET_TOKEN_TYPE = "password_reset"
+
+
+def create_password_reset_token(user_id: str) -> str:
+    """Short-lived JWT for password reset (does not grant API access)."""
+    expire = datetime.utcnow() + timedelta(minutes=settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES)
+    to_encode = {
+        "sub": user_id,
+        "exp": expire,
+        "typ": PASSWORD_RESET_TOKEN_TYPE,
+    }
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def decode_password_reset_token(token: str) -> Optional[str]:
+    """Return user id if token is a valid password-reset JWT."""
+    try:
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
+        if payload.get("typ") != PASSWORD_RESET_TOKEN_TYPE:
+            return None
+        sub = payload.get("sub")
+        return str(sub) if sub else None
+    except JWTError:
+        return None

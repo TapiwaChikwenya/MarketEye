@@ -25,9 +25,20 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      const reqUrl = String(error.config?.url ?? '');
+      // Failed login/register returns 401 — do not wipe session or hard-redirect
+      if (reqUrl.includes('/auth/login') || reqUrl.includes('/auth/register')) {
+        return Promise.reject(error);
+      }
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      const path = window.location.pathname + window.location.search;
+      if (window.location.pathname === '/login' || window.location.pathname === '/register') {
+        window.location.href = window.location.pathname;
+      } else {
+        window.location.href = `/login?returnTo=${encodeURIComponent(path)}`;
+      }
     }
+    // 403: stay on page (e.g. non-admin hitting admin API)
     return Promise.reject(error);
   }
 );

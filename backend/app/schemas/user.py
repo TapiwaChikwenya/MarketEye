@@ -40,10 +40,28 @@ class UserResponse(UserBase):
     quiet_hours_end: Optional[time]
     subscription_tier: SubscriptionTier
     is_active: bool
+    is_superuser: bool = False
     email_verified: bool
     phone_verified: bool
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ForgotPasswordRequest(BaseModel):
+    """Request password reset email."""
+    email: EmailStr
+
+
+class ForgotPasswordResponse(BaseModel):
+    """Forgot-password response (reset_link only when dev + SMTP not configured)."""
+    detail: str
+    reset_link: Optional[str] = None
+
+
+class ResetPasswordRequest(BaseModel):
+    """Reset password with token from email."""
+    token: str
+    new_password: str
 
 
 class Token(BaseModel):

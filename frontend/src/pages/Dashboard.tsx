@@ -531,42 +531,40 @@ export function Dashboard() {
 
   return (
     <div className="min-h-dvh bg-background cyber-grid-bg">
-      {/* Header */}
+      {/* Header — matches marketing shell */}
       <motion.header
         initial={{ y: -100 }}
         animate={{ y: 0 }}
-        className="sticky top-0 z-50 border-b border-black/[0.06] bg-white/90 backdrop-blur-xl"
+        className="sticky top-0 z-50 glass-dark border-b border-white/[0.06]"
       >
         <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            {/* Logo and Navigation */}
-            <div className="flex items-center gap-6">
-              <Link to="/" className="flex items-center gap-3 group">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#0071e3] to-[#5856d6] flex items-center justify-center group-hover:scale-105 transition-transform">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-4 md:gap-6">
+              <Link to="/" className="flex min-w-0 items-center gap-3 group">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-ink-elevated ring-1 ring-brass/30 shadow-lg transition-transform group-hover:scale-[1.02]">
                   <Eye className="text-white" size={20} />
                 </div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-[#0071e3] to-[#5856d6] bg-clip-text text-transparent">
+                <h1 className="font-display truncate text-xl font-semibold tracking-tight text-white md:text-2xl">
                   MarketEye
                 </h1>
               </Link>
-              <div className="hidden md:flex items-center gap-2">
-                <div className="w-2 h-2 bg-[#0071e3] rounded-full animate-pulse" />
-                <span className="text-sm text-[#0071e3]">Live</span>
+              <div className="hidden items-center gap-2 md:flex">
+                <div className="h-2 w-2 animate-pulse rounded-full bg-success" />
+                <span className="text-sm font-medium text-white/70">Live</span>
               </div>
-              {/* Navigation Links */}
-              <nav className="hidden md:flex items-center gap-4 ml-4 pl-4 border-l border-black/[0.06]">
-                <Link 
-                  to="/" 
-                  className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-[#0071e3] transition-colors"
+              <nav className="ml-2 hidden items-center gap-3 border-l border-white/10 pl-4 md:flex">
+                <Link
+                  to="/"
+                  className="flex items-center gap-2 text-sm font-medium text-white/55 transition-colors hover:text-white"
                 >
                   <Home size={16} />
                   Home
                 </Link>
                 <Button
-                  variant="ghost"
+                  variant="dark-ghost"
                   size="sm"
                   onClick={() => setShowSettings(true)}
-                  className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-yellow-500"
+                  className="flex items-center gap-2 text-white/55 hover:text-brass"
                 >
                   <Wallet size={16} />
                   Watchlists
@@ -574,69 +572,48 @@ export function Dashboard() {
               </nav>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               {user?.email && (
-                <div className="hidden lg:flex items-center px-3 py-1.5 rounded-md border border-black/[0.06] bg-muted/40 text-xs text-muted-foreground">
-                  Signed in as&nbsp;
-                  <span className="text-[#0071e3] font-medium">{user.email}</span>
+                <div className="hidden max-w-[220px] items-center truncate rounded-md border border-white/10 bg-white/[0.06] px-3 py-1.5 text-xs text-white/55 lg:flex">
+                  <span className="truncate">
+                    <span className="text-white/40">Signed in · </span>
+                    <span className="font-medium text-brass">{user.email}</span>
+                  </span>
                 </div>
               )}
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => setShowSearch(true)}
-                title="Search assets"
-              >
-                <Search size={20} />
+              <Button variant="dark-ghost" size="icon" onClick={() => setShowSearch(true)} title="Search assets">
+                <Search size={20} className="text-white/80" />
               </Button>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={handleRefresh}
-                disabled={refreshing}
-                title="Refresh data"
-              >
-                <RefreshCw size={20} className={refreshing ? 'animate-spin' : ''} />
+              <Button variant="dark-ghost" size="icon" onClick={handleRefresh} disabled={refreshing} title="Refresh data">
+                <RefreshCw size={20} className={refreshing ? 'animate-spin text-white/80' : 'text-white/80'} />
               </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="dark-ghost"
+                size="icon"
                 onClick={() => setShowNotifications(true)}
                 title="Notifications"
                 className="relative"
               >
-                <BellRing size={20} />
+                <BellRing size={20} className="text-white/80" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#ff3b30] rounded-full text-xs flex items-center justify-center">
+                  <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold text-white">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
               </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setShowAlerts(true)}
-                title="Price Alerts"
-                className="relative"
-              >
-                <Bell size={20} />
-                {alerts.filter(a => a.is_active).length > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#0071e3] rounded-full text-xs flex items-center justify-center">
-                    {alerts.filter(a => a.is_active).length}
+              <Button variant="dark-ghost" size="icon" onClick={() => setShowAlerts(true)} title="Price Alerts" className="relative">
+                <Bell size={20} className="text-white/80" />
+                {alerts.filter((a) => a.is_active).length > 0 && (
+                  <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-white">
+                    {alerts.filter((a) => a.is_active).length}
                   </span>
                 )}
               </Button>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => setShowSettings(true)}
-                title="Settings"
-              >
-                <Settings size={20} />
+              <Button variant="dark-ghost" size="icon" onClick={() => setShowSettings(true)} title="Settings">
+                <Settings size={20} className="text-white/80" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={handleLogout} title="Logout">
-                <LogOut size={20} />
+              <Button variant="dark-ghost" size="icon" onClick={handleLogout} title="Logout">
+                <LogOut size={20} className="text-white/80" />
               </Button>
             </div>
           </div>
@@ -652,7 +629,7 @@ export function Dashboard() {
             className="mb-6"
           >
             <h2 className="text-xl text-muted-foreground">
-              Welcome, <span className="text-[#0071e3] font-semibold">{user.name || user.email}</span>
+              Welcome, <span className="text-primary font-semibold">{user.name || user.email}</span>
             </h2>
             {user.name && <p className="text-sm text-muted-foreground">{user.email}</p>}
           </motion.div>
@@ -665,51 +642,51 @@ export function Dashboard() {
           transition={{ delay: 0.1 }}
           className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8"
         >
-          <Card className="border border-black/[0.06] bg-white shadow-sm">
+          <Card className="border-border/80 bg-card shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
-                <TrendingUp className="text-[#0071e3]" size={16} />
+                <TrendingUp className="text-primary" size={16} />
                 Gainers
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-[#0071e3]">{marketSummary.gainers}</div>
+              <div className="text-3xl font-bold text-primary">{marketSummary.gainers}</div>
             </CardContent>
           </Card>
 
-          <Card className="border border-[#ff3b30]/20 bg-white shadow-sm">
+          <Card className="border-destructive/20 bg-card shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
-                <TrendingDown className="text-[#ff3b30]" size={16} />
+                <TrendingDown className="text-destructive" size={16} />
                 Losers
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-[#ff3b30]">{marketSummary.losers}</div>
+              <div className="text-3xl font-bold text-destructive">{marketSummary.losers}</div>
             </CardContent>
           </Card>
 
-          <Card className="border border-[#34c759]/25 bg-white shadow-sm">
+          <Card className="border-success/25 bg-card shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
-                <Bell className="text-[#34c759]" size={16} />
+                <Bell className="text-success" size={16} />
                 Active Alerts
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-[#34c759]">{alerts.filter(a => a.is_active).length}</div>
+              <div className="text-3xl font-bold text-success">{alerts.filter(a => a.is_active).length}</div>
             </CardContent>
           </Card>
 
-          <Card className="border border-amber-200/80 bg-white shadow-sm">
+          <Card className="border-amber-200/80 bg-card shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
-                <Star className="text-yellow-500" size={16} />
+                <Star className="text-brass" size={16} />
                 Tracked Assets
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-yellow-500">{trackedAssets.length}</div>
+              <div className="text-3xl font-bold text-brass">{trackedAssets.length}</div>
             </CardContent>
           </Card>
         </motion.div>
@@ -726,7 +703,7 @@ export function Dashboard() {
               className="flex items-center justify-between mb-4 cursor-pointer"
               onClick={() => setShowTrackedSection(!showTrackedSection)}
             >
-              <h2 className="text-2xl font-bold text-yellow-500 flex items-center gap-2">
+              <h2 className="text-2xl font-bold text-brass flex items-center gap-2">
                 <Star size={24} />
                 Your Tracked Assets ({trackedAssets.length})
               </h2>
@@ -756,14 +733,14 @@ export function Dashboard() {
                           <span className={cn(
                             "w-2 h-2 rounded-full mr-2",
                             asset.asset_type === 'CRYPTO' ? 'bg-violet-500' : 
-                            asset.asset_type === 'MUTUAL_FUND' || asset.asset_type === 'ETF' ? 'bg-[#34c759]' : 
-                            'bg-[#0071e3]'
+                            asset.asset_type === 'MUTUAL_FUND' || asset.asset_type === 'ETF' ? 'bg-success' : 
+                            'bg-primary'
                           )} />
                           {asset.symbol}
                           {asset.change_percent_24h && (
                             <span className={cn(
                               "ml-2 text-xs",
-                              parseFloat(asset.change_percent_24h) >= 0 ? 'text-[#34c759]' : 'text-[#ff3b30]'
+                              parseFloat(asset.change_percent_24h) >= 0 ? 'text-success' : 'text-destructive'
                             )}>
                               {parseFloat(asset.change_percent_24h) >= 0 ? '+' : ''}
                               {parseFloat(asset.change_percent_24h).toFixed(1)}%
@@ -886,7 +863,7 @@ export function Dashboard() {
           transition={{ delay: 0.3 }}
         >
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-[#0071e3]">
+            <h2 className="text-2xl font-bold text-primary">
               {activeTab === 'trending' ? 'Market Overview' : 'Your Portfolio'}
             </h2>
             {lastUpdate && (
@@ -909,10 +886,10 @@ export function Dashboard() {
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {[...Array(8)].map((_, index) => (
-                <div key={index} className="rounded-2xl border border-black/[0.06] bg-white p-6 animate-pulse">
-                  <div className="h-6 bg-[#0071e3]/20 rounded w-1/2 mb-4"></div>
-                  <div className="h-8 bg-[#0071e3]/10 rounded w-3/4 mb-2"></div>
-                  <div className="h-4 bg-[#0071e3]/10 rounded w-1/4"></div>
+                <div key={index} className="animate-pulse rounded-2xl border border-border/80 bg-card p-6">
+                  <div className="h-6 bg-primary/20 rounded w-1/2 mb-4"></div>
+                  <div className="h-8 bg-primary/10 rounded w-3/4 mb-2"></div>
+                  <div className="h-4 bg-primary/10 rounded w-1/4"></div>
                 </div>
               ))}
             </div>
@@ -952,7 +929,7 @@ export function Dashboard() {
                           onClick={() => setSelectedChartAsset(tracked)}
                         />
                       </div>
-                      <div className="absolute top-2 right-2 w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center">
+                      <div className="absolute top-2 right-2 w-6 h-6 bg-brass rounded-full flex items-center justify-center">
                         <Star size={14} className="text-amber-500" fill="currentColor" />
                       </div>
                       <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
@@ -1017,7 +994,7 @@ export function Dashboard() {
                     }}
                   />
                   {isAssetTracked(asset.symbol) && (
-                    <div className="absolute top-2 right-2 w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center">
+                    <div className="absolute top-2 right-2 w-6 h-6 bg-brass rounded-full flex items-center justify-center">
                       <Star size={14} className="text-amber-500" fill="currentColor" />
                     </div>
                   )}
@@ -1095,7 +1072,7 @@ export function Dashboard() {
 
         {/* Background decorations */}
         <div className="fixed top-0 left-0 w-full h-full pointer-events-none overflow-hidden -z-10">
-          <div className="absolute top-20 left-10 w-64 h-64 bg-[#0071e3]/5 rounded-full blur-3xl" />
+          <div className="absolute top-20 left-10 w-64 h-64 bg-primary/5 rounded-full blur-3xl" />
           <div className="absolute bottom-20 right-10 w-96 h-96 bg-violet-400/10 rounded-full blur-3xl" />
         </div>
       </div>
@@ -1112,8 +1089,8 @@ export function Dashboard() {
               Search for stocks, crypto, ETFs, or mutual funds (including Fidelity, Vanguard)
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="space-y-4 mt-4">
+
+          <div className="space-y-4">
             <Input
               placeholder="Search by symbol or name (e.g., FXAIX, VOO, BTC)..."
               onChange={(e) => handleSearch(e.target.value)}
@@ -1132,14 +1109,14 @@ export function Dashboard() {
                 {searchResults.map((result) => (
                   <div
                     key={result.symbol}
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/70 hover:bg-muted/80 transition-colors"
+                    className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/50 p-3 transition-colors hover:bg-muted/70"
                   >
                     <div className="flex items-center gap-3">
                       <div className={cn(
                         "w-10 h-10 rounded-lg flex items-center justify-center",
                         result.asset_type === 'CRYPTO' ? 'bg-violet-500/15' :
-                        result.asset_type === 'MUTUAL_FUND' || result.asset_type === 'ETF' ? 'bg-[#34c759]/20' :
-                        'bg-[#0071e3]/20'
+                        result.asset_type === 'MUTUAL_FUND' || result.asset_type === 'ETF' ? 'bg-success/20' :
+                        'bg-primary/20'
                       )}>
                         {getAssetTypeIcon(result.asset_type)}
                       </div>
@@ -1152,9 +1129,9 @@ export function Dashboard() {
                       <span className={cn(
                         "text-xs px-2 py-1 rounded",
                         result.asset_type === 'CRYPTO' ? 'bg-violet-500/15 text-violet-700' :
-                        result.asset_type === 'MUTUAL_FUND' ? 'bg-[#34c759]/20 text-[#34c759]' :
+                        result.asset_type === 'MUTUAL_FUND' ? 'bg-success/20 text-success' :
                         result.asset_type === 'ETF' ? 'bg-emerald-500/15 text-emerald-700' :
-                        'bg-[#0071e3]/20 text-[#0071e3]'
+                        'bg-primary/20 text-primary'
                       )}>
                         {result.asset_type}
                       </span>
@@ -1266,7 +1243,7 @@ export function Dashboard() {
                   </div>
                   <div className={cn(
                     "px-2 py-1 rounded text-xs",
-                    pushEnabled ? "bg-[#34c759]/20 text-[#34c759]" : "bg-yellow-500/20 text-yellow-500"
+                    pushEnabled ? "bg-success/20 text-success" : "bg-brass/20 text-brass"
                   )}>
                     {pushEnabled ? 'Enabled' : 'Disabled'}
                   </div>
@@ -1370,7 +1347,7 @@ export function Dashboard() {
                         onClick={() => handleViewWatchlist(watchlist.id)}
                       >
                         <div className="font-medium flex items-center gap-2">
-                          <Star size={14} className="text-yellow-500" />
+                          <Star size={14} className="text-brass" />
                           {watchlist.name}
                         </div>
                         <div className="text-xs text-muted-foreground">
@@ -1438,7 +1415,7 @@ export function Dashboard() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{alert.name || 'Price Alert'}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded ${alert.is_active ? 'bg-[#0071e3]/20 text-[#0071e3]' : 'bg-gray-500/20 text-gray-400'}`}>
+                      <span className={`text-xs px-2 py-0.5 rounded ${alert.is_active ? 'bg-primary/20 text-primary' : 'bg-gray-500/20 text-gray-400'}`}>
                         {alert.is_active ? 'Active' : 'Paused'}
                       </span>
                     </div>
@@ -1488,8 +1465,8 @@ export function Dashboard() {
                     <div className={cn(
                       "w-12 h-12 rounded-lg flex items-center justify-center text-lg",
                       selectedAsset.asset_type === 'CRYPTO' ? 'bg-violet-500/15 text-violet-700' :
-                      selectedAsset.asset_type === 'MUTUAL_FUND' || selectedAsset.asset_type === 'ETF' ? 'bg-[#34c759]/20 text-[#34c759]' :
-                      'bg-[#0071e3]/20 text-[#0071e3]'
+                      selectedAsset.asset_type === 'MUTUAL_FUND' || selectedAsset.asset_type === 'ETF' ? 'bg-success/20 text-success' :
+                      'bg-primary/20 text-primary'
                     )}>
                       {getAssetTypeIcon(selectedAsset.asset_type)}
                     </div>
@@ -1502,7 +1479,7 @@ export function Dashboard() {
                     <div className="text-lg font-semibold">
                       ${parseFloat(selectedAsset.current_price || '0').toLocaleString()}
                     </div>
-                    <div className={`text-sm ${parseFloat(selectedAsset.change_percent_24h || '0') >= 0 ? 'text-[#34c759]' : 'text-[#ff3b30]'}`}>
+                    <div className={`text-sm ${parseFloat(selectedAsset.change_percent_24h || '0') >= 0 ? 'text-success' : 'text-destructive'}`}>
                       {parseFloat(selectedAsset.change_percent_24h || '0') >= 0 ? '+' : ''}
                       {parseFloat(selectedAsset.change_percent_24h || '0').toFixed(2)}%
                     </div>
@@ -1562,7 +1539,7 @@ export function Dashboard() {
             <div className="space-y-4 mt-4">
               <div className="p-4 rounded-lg bg-muted/70">
                 <div className="text-sm text-muted-foreground">Current Price</div>
-                <div className="text-2xl font-bold text-[#0071e3]">
+                <div className="text-2xl font-bold text-primary">
                   ${parseFloat(selectedAsset.current_price || '0').toLocaleString()}
                 </div>
               </div>
@@ -1661,7 +1638,7 @@ export function Dashboard() {
               <div className="flex items-center gap-3">
                 <div className={cn(
                   "w-3 h-3 rounded-full",
-                  pushEnabled ? "bg-[#34c759]" : "bg-yellow-500"
+                  pushEnabled ? "bg-success" : "bg-brass"
                 )} />
                 <div>
                   <div className="font-medium">Browser Push Notifications</div>
@@ -1716,15 +1693,15 @@ export function Dashboard() {
                     key={notif.id} 
                     className={cn(
                       "flex items-start gap-3 p-3 rounded-lg transition-colors cursor-pointer",
-                      notif.read ? "bg-muted/50" : "bg-muted/70 border-l-2 border-[#0071e3]"
+                      notif.read ? "bg-muted/50" : "bg-muted/70 border-l-2 border-primary"
                     )}
                     onClick={() => markAsRead(notif.id)}
                   >
                     <div className={cn(
                       "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
                       notif.type === 'price_alert' ? "bg-amber-500/15 text-amber-700" :
-                      notif.type === 'system' ? "bg-[#0071e3]/20 text-[#0071e3]" :
-                      "bg-[#34c759]/20 text-[#34c759]"
+                      notif.type === 'system' ? "bg-primary/20 text-primary" :
+                      "bg-success/20 text-success"
                     )}>
                       {notif.type === 'price_alert' ? <AlertTriangle size={14} /> :
                        notif.type === 'system' ? <Settings size={14} /> :
@@ -1739,11 +1716,11 @@ export function Dashboard() {
                       </div>
                       <div className="text-sm text-muted-foreground mt-1">{notif.message}</div>
                       {notif.symbol && (
-                        <div className="text-xs text-[#0071e3] mt-1">{notif.symbol}</div>
+                        <div className="text-xs text-primary mt-1">{notif.symbol}</div>
                       )}
                     </div>
                     {!notif.read && (
-                      <div className="w-2 h-2 bg-[#0071e3] rounded-full flex-shrink-0" />
+                      <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0" />
                     )}
                   </div>
                 ))}
@@ -1790,7 +1767,7 @@ export function Dashboard() {
                     className="w-full justify-start"
                     onClick={() => selectedAsset && handleAddToWatchlist(watchlist.id, selectedAsset)}
                   >
-                    <Star size={16} className="mr-2 text-yellow-500" />
+                    <Star size={16} className="mr-2 text-brass" />
                     {watchlist.name}
                   </Button>
                 ))}
@@ -1805,7 +1782,7 @@ export function Dashboard() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Star size={20} className="text-yellow-500" />
+              <Star size={20} className="text-brass" />
               {selectedWatchlist?.name}
             </DialogTitle>
             <DialogDescription>
@@ -1830,8 +1807,8 @@ export function Dashboard() {
                       <div className={cn(
                         "w-10 h-10 rounded-lg flex items-center justify-center",
                         asset.asset_type === 'CRYPTO' ? 'bg-violet-500/15' :
-                        asset.asset_type === 'MUTUAL_FUND' || asset.asset_type === 'ETF' ? 'bg-[#34c759]/20' :
-                        'bg-[#0071e3]/20'
+                        asset.asset_type === 'MUTUAL_FUND' || asset.asset_type === 'ETF' ? 'bg-success/20' :
+                        'bg-primary/20'
                       )}>
                         {getAssetTypeIcon(asset.asset_type)}
                       </div>
@@ -1847,7 +1824,7 @@ export function Dashboard() {
                           {asset.change_percent_24h && (
                             <div className={cn(
                               "text-sm",
-                              parseFloat(asset.change_percent_24h) >= 0 ? 'text-[#34c759]' : 'text-[#ff3b30]'
+                              parseFloat(asset.change_percent_24h) >= 0 ? 'text-success' : 'text-destructive'
                             )}>
                               {parseFloat(asset.change_percent_24h) >= 0 ? '+' : ''}
                               {parseFloat(asset.change_percent_24h).toFixed(2)}%

@@ -1,8 +1,8 @@
 """
 FastAPI dependencies.
 """
-from typing import Generator, Optional
-from fastapi import Depends, HTTPException, status
+from typing import Generator
+from fastapi import Depends, HTTPException, status as http_status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -28,7 +28,7 @@ async def get_current_user(
 ) -> User:
     """Get current authenticated user."""
     credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
+        status_code=http_status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
@@ -56,4 +56,16 @@ async def get_current_active_user(
     """Get current active user."""
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
+    return current_user
+
+
+async def get_current_superuser(
+    current_user: User = Depends(get_current_active_user),
+) -> User:
+    """Require admin (superuser)."""
+    if not current_user.is_superuser:
+        raise HTTPException(
+            status_code=http_status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
     return current_user

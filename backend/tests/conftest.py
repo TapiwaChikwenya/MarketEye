@@ -24,6 +24,8 @@ def clear_market_cache():
         market_data.market_data_service._registry = None
     public_api._trending_cache.clear()
     public_api._trending_cache_ts = 0.0
+    public_api._trending_cache_hits = 0
+    public_api._trending_cache_misses = 0
     yield
     market_data._fallback_cache.clear()
     market_data._redis_client = None
@@ -32,3 +34,5 @@ def clear_market_cache():
         market_data.market_data_service._registry = None
     public_api._trending_cache.clear()
     public_api._trending_cache_ts = 0.0
+    public_api._trending_cache_hits = 0
+    public_api._trending_cache_misses = 0

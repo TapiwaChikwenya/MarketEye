@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Eye, TrendingUp, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,8 +9,20 @@ import { Navbar } from '@/components/Navbar';
 import { isAxiosError } from 'axios';
 import { authService } from '@/services/auth';
 
+function postLoginPath(location: ReturnType<typeof useLocation>, searchParams: URLSearchParams): string {
+  const fromState = (location.state as { from?: { pathname: string } } | null)?.from?.pathname;
+  const returnTo = searchParams.get('returnTo');
+  const candidate = fromState || returnTo;
+  if (candidate && candidate.startsWith('/') && !candidate.startsWith('//')) {
+    return candidate;
+  }
+  return '/dashboard';
+}
+
 export function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,7 +35,7 @@ export function Login() {
 
     try {
       await authService.login({ username: email, password });
-      navigate('/dashboard');
+      navigate(postLoginPath(location, searchParams), { replace: true });
     } catch (err: unknown) {
       if (!isAxiosError(err)) {
         setError('Login failed. Please try again.');
@@ -53,138 +65,127 @@ export function Login() {
   };
 
   return (
-    <div className="min-h-dvh bg-background cyber-grid-bg flex flex-col">
-      <Navbar transparent />
+    <div className="flex min-h-dvh flex-col bg-background">
+      <Navbar />
 
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-96 h-96 bg-[#0071e3]/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-violet-400/10 rounded-full blur-3xl" />
-      </div>
+      <div className="relative flex flex-1">
+        <div className="pointer-events-none absolute inset-0 bg-mesh-hero opacity-40" />
+        <div className="pointer-events-none absolute inset-0 cyber-grid-bg opacity-50" />
 
-      <div className="flex-1 flex items-center justify-center p-6">
-        <div className="w-full max-w-6xl grid md:grid-cols-2 gap-8 relative z-10">
-        {/* Left side - Branding */}
-        <motion.div
-          initial={{ opacity: 0, x: -50 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="hidden md:flex flex-col justify-center"
-        >
-          <div className="mb-8">
-            <h1 className="text-6xl font-semibold tracking-tight mb-4 text-foreground">
-              Market<span className="text-[#0071e3]">Eye</span>
-            </h1>
-            <p className="text-xl text-muted-foreground mb-8">
-              24/7 Investment Watcher
-            </p>
-          </div>
-
-          <div className="space-y-6">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-[#0071e3]/10 flex items-center justify-center">
-                <Eye className="text-[#0071e3]" size={24} />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold mb-1">Real-time Monitoring</h3>
-                <p className="text-sm text-muted-foreground">
-                  Track stocks, crypto, and ETFs 24/7 with live price updates
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-violet-500/10 flex items-center justify-center">
-                <TrendingUp className="text-violet-600" size={24} />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold mb-1">Smart Alerts</h3>
-                <p className="text-sm text-muted-foreground">
-                  Get instant notifications via SMS, call, or email
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-[#34c759]/10 flex items-center justify-center">
-                <Shield className="text-[#34c759]" size={24} />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold mb-1">Secure & Private</h3>
-                <p className="text-sm text-muted-foreground">
-                  Your data is encrypted and protected
-                </p>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Right side - Login form */}
-        <motion.div
-          initial={{ opacity: 0, x: 50 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="flex items-center"
-        >
-          <Card className="w-full border-black/[0.06] shadow-lg bg-white/95">
-            <CardHeader>
-              <CardTitle className="text-2xl text-foreground">Welcome back</CardTitle>
-              <CardDescription>
-                Sign in to your MarketEye account
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {error && (
-                  <div className="p-3 rounded-md bg-destructive/20 border border-destructive/50 text-destructive text-sm">
-                    {error}
+        <div className="relative z-10 mx-auto grid w-full max-w-6xl flex-1 grid-cols-1 gap-0 p-6 md:grid-cols-2 md:gap-12 md:p-10 lg:items-center">
+          <motion.div
+            initial={{ opacity: 0, x: -24 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="relative hidden overflow-hidden rounded-2xl border border-white/10 bg-ink p-10 text-white shadow-2xl md:flex md:flex-col md:justify-center"
+          >
+            <div className="pointer-events-none absolute inset-0 bg-hero-dark opacity-90" />
+            <div className="pointer-events-none absolute -right-20 top-0 h-64 w-64 rounded-full bg-brass/15 blur-3xl" />
+            <div className="relative">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brass">MarketEye</p>
+              <h1 className="font-display mt-4 text-4xl font-semibold leading-tight tracking-tight lg:text-5xl">
+                Sign in to your workspace
+              </h1>
+              <p className="mt-4 text-base leading-relaxed text-white/60">
+                Same alerting surface as the public product — tuned for operators who live in tick data.
+              </p>
+              <div className="mt-10 space-y-6">
+                <div className="flex gap-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/10">
+                    <Eye className="text-brass" size={22} />
                   </div>
-                )}
-
-                <div className="space-y-2">
-                  <label htmlFor="email" className="text-sm font-medium">
-                    Email
-                  </label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
+                  <div>
+                    <h3 className="font-medium text-white">Real-time marks</h3>
+                    <p className="text-sm text-white/55">Stocks, crypto, and funds in one stream.</p>
+                  </div>
                 </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="password" className="text-sm font-medium">
-                    Password
-                  </label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
+                <div className="flex gap-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/10">
+                    <TrendingUp className="text-primary" size={22} />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-white">Alerts that scale</h3>
+                    <p className="text-sm text-white/55">SMS, voice, email — with guardrails.</p>
+                  </div>
                 </div>
+                <div className="flex gap-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/10">
+                    <Shield className="text-success" size={22} />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-white">Institutional posture</h3>
+                    <p className="text-sm text-white/55">Encryption and least-privilege by default.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
 
-                <Button
-                  type="submit"
-                  variant="default"
-                  className="w-full"
-                  disabled={loading}
-                >
-                  {loading ? 'Signing in...' : 'Sign In'}
-                </Button>
+          <motion.div
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex items-center justify-center"
+          >
+            <Card className="w-full border-border/80 bg-card/95 shadow-lift-lg backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="font-display text-2xl text-foreground">Welcome back</CardTitle>
+                <CardDescription>Sign in to continue to your dashboard.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {error && (
+                    <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                      {error}
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <label htmlFor="email" className="text-sm font-medium text-foreground">
+                      Email
+                    </label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="password" className="text-sm font-medium text-foreground">
+                      Password
+                    </label>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <Button type="submit" variant="default" className="w-full" disabled={loading}>
+                    {loading ? 'Signing in…' : 'Sign in'}
+                  </Button>
 
                 <div className="text-center text-sm text-muted-foreground">
-                  Don't have an account?{' '}
-                  <Link to="/register" className="text-[#0071e3] hover:underline">
-                    Sign up
+                  <Link to="/forgot-password" className="font-medium text-primary hover:underline">
+                    Forgot password?
                   </Link>
                 </div>
-              </form>
-            </CardContent>
-          </Card>
-        </motion.div>
+
+                <div className="text-center text-sm text-muted-foreground">
+                  Don&apos;t have an account?{' '}
+                  <Link to="/register" className="font-medium text-primary hover:underline">
+                    Create one
+                  </Link>
+                </div>
+                </form>
+              </CardContent>
+            </Card>
+          </motion.div>
         </div>
       </div>
     </div>

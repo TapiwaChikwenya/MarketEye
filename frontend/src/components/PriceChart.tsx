@@ -98,7 +98,7 @@ export function PriceChart({
 
   const priceChange = parseFloat(changePercent || '0');
   const isPositive = priceChange >= 0;
-  const chartColor = isPositive ? '#0071e3' : '#ff3b30';
+  const chartColor = isPositive ? 'hsl(217, 91%, 44%)' : 'hsl(0, 72%, 51%)';
 
   // Calculate chart stats
   const minPrice = data.length > 0 ? Math.min(...data.map(d => d.close)) : 0;
@@ -142,7 +142,7 @@ export function PriceChart({
   }
 
   return (
-    <Card className="border-black/[0.06] bg-white p-6 shadow-sm">
+    <Card className="border-border/80 bg-card p-6 shadow-sm">
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
@@ -150,7 +150,7 @@ export function PriceChart({
             <h3 className="text-2xl font-semibold text-foreground">{symbol}</h3>
             <span className={cn(
               "px-2 py-0.5 rounded-md text-xs font-medium",
-              assetType === 'CRYPTO' ? 'bg-violet-500/15 text-violet-700' : 'bg-[#0071e3]/10 text-[#0071e3]'
+              assetType === 'CRYPTO' ? 'bg-violet-500/15 text-violet-700' : 'bg-primary/10 text-primary'
             )}>
               {assetType}
             </span>
@@ -163,7 +163,7 @@ export function PriceChart({
           </div>
           <div className={cn(
             "flex items-center justify-end gap-1 text-sm",
-            isPositive ? 'text-[#34c759]' : 'text-[#ff3b30]'
+            isPositive ? 'text-success' : 'text-destructive'
           )}>
             {isPositive ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
             {isPositive ? '+' : ''}{priceChange.toFixed(2)}% (24h)
@@ -190,7 +190,7 @@ export function PriceChart({
       <div className="h-64 w-full">
         {loading ? (
           <div className="h-full flex items-center justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-[#0071e3]" />
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
           </div>
         ) : error ? (
           <div className="h-full flex items-center justify-center text-muted-foreground">
@@ -249,19 +249,19 @@ export function PriceChart({
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mt-4 pt-4 border-t border-black/[0.06]">
+      <div className="mt-4 grid grid-cols-4 gap-4 border-t border-border/80 pt-4">
         <div>
           <div className="text-xs text-muted-foreground">Period Change</div>
           <div className={cn(
             "font-semibold",
-            periodChange >= 0 ? 'text-[#34c759]' : 'text-[#ff3b30]'
+            periodChange >= 0 ? 'text-success' : 'text-destructive'
           )}>
             {periodChange >= 0 ? '+' : ''}{periodChange.toFixed(2)}%
           </div>
         </div>
         <div>
           <div className="text-xs text-muted-foreground">High</div>
-          <div className="font-semibold text-[#34c759]">{formatPrice(maxPrice)}</div>
+          <div className="font-semibold text-success">{formatPrice(maxPrice)}</div>
         </div>
         <div>
           <div className="text-xs text-muted-foreground">Low</div>
