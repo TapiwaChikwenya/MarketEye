@@ -134,7 +134,14 @@ class NotificationService:
 
         try:
             from sendgrid import SendGridAPIClient
-            from sendgrid.helpers.mail import Mail, MailSettings, SandBoxMode
+            from sendgrid.helpers.mail import (
+                Mail,
+                MailSettings,
+                SandBoxMode,
+                TrackingSettings,
+                ClickTracking,
+                OpenTracking,
+            )
 
             message = Mail(
                 from_email=(settings.SENDGRID_FROM_EMAIL, settings.SENDGRID_FROM_NAME),
@@ -142,6 +149,13 @@ class NotificationService:
                 subject=subject,
                 plain_text_content=body,
                 html_content=html,
+            )
+
+            # Disable link/open tracking so auth URLs are not rewritten through
+            # url####.yourdomain.com (broken SSL on tracking subdomains is common).
+            message.tracking_settings = TrackingSettings(
+                click_tracking=ClickTracking(enable=False, enable_text=False),
+                open_tracking=OpenTracking(enable=False),
             )
 
             if settings.SENDGRID_SANDBOX_MODE:
