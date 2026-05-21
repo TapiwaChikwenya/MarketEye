@@ -52,13 +52,13 @@ class Settings(BaseSettings):
     TWILIO_AUTH_TOKEN: Optional[str] = None
     TWILIO_PHONE_NUMBER: Optional[str] = None
 
-    # Email
-    SMTP_HOST: str = "smtp.gmail.com"
-    SMTP_PORT: int = 587
-    SMTP_USER: Optional[str] = None
-    SMTP_PASSWORD: Optional[str] = None
-    SMTP_FROM_EMAIL: str = "noreply@marketeye.com"
-    SMTP_FROM_NAME: str = "MarketEye"
+    # Email (SendGrid HTTP API)
+    SENDGRID_API_KEY: Optional[str] = None
+    SENDGRID_FROM_EMAIL: str = "noreply@marketeye.com"
+    SENDGRID_FROM_NAME: str = "MarketEye"
+    # Sandbox mode: SendGrid accepts the request and validates everything
+    # but does NOT deliver. Useful for CI / smoke tests only.
+    SENDGRID_SANDBOX_MODE: bool = False
 
     # Market Data APIs
     FINNHUB_API_KEY: Optional[str] = None

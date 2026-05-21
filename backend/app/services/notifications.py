@@ -1,12 +1,10 @@
 """
 Notification service for SMS, calls, and email.
 """
+import asyncio
 import logging
 from typing import Optional
 from twilio.rest import Client
-import aiosmtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -119,64 +117,79 @@ class NotificationService:
         to: str,
         subject: str,
         body: str,
-        html: Optional[str] = None
+        html: Optional[str] = None,
     ) -> dict:
         """
-        Send email notification via SMTP.
-
-        Args:
-            to: Email address to send to
-            subject: Email subject
-            body: Plain text body
-            html: Optional HTML body
+        Send a transactional email via SendGrid's v3 /mail/send HTTP API.
 
         Returns:
-            Dict with status
+            dict with at least {"status": "sent"|"error", "provider": ...}.
+            Never raises - failures are logged and surfaced in the return
+            value so callers (alert workers, password reset) can decide
+            how to handle them.
         """
-        if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
-            # Demo mode - simulate email sending
+        if not settings.SENDGRID_API_KEY:
             logger.info(f"[DEMO MODE] Email to {to}: {subject}")
-            return {
-                "status": "sent",
-                "provider": "smtp_demo"
-            }
+            return {"status": "sent", "provider": "sendgrid_demo"}
 
         try:
-            message = MIMEMultipart("alternative")
-            message["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-            message["To"] = to
-            message["Subject"] = subject
-
-            # Add plain text part
-            text_part = MIMEText(body, "plain")
-            message.attach(text_part)
-
-            # Add HTML part if provided
-            if html:
-                html_part = MIMEText(html, "html")
-                message.attach(html_part)
-
-            # Send email
-            await aiosmtplib.send(
-                message,
-                hostname=settings.SMTP_HOST,
-                port=settings.SMTP_PORT,
-                username=settings.SMTP_USER,
-                password=settings.SMTP_PASSWORD,
-                start_tls=True,
+            from sendgrid import SendGridAPIClient
+            from sendgrid.helpers.mail import (
+                Mail,
+                MailSettings,
+                SandBoxMode,
+                TrackingSettings,
+                ClickTracking,
+                OpenTracking,
             )
 
-            return {
-                "status": "sent",
-                "provider": "smtp"
-            }
-        except Exception as e:
-            logger.error(f"Failed to send email to {to}: {e}")
+            message = Mail(
+                from_email=(settings.SENDGRID_FROM_EMAIL, settings.SENDGRID_FROM_NAME),
+                to_emails=to,
+                subject=subject,
+                plain_text_content=body,
+                html_content=html,
+            )
+
+            # Disable link/open tracking so auth URLs are not rewritten through
+            # url####.yourdomain.com (broken SSL on tracking subdomains is common).
+            message.tracking_settings = TrackingSettings(
+                click_tracking=ClickTracking(enable=False, enable_text=False),
+                open_tracking=OpenTracking(enable=False),
+            )
+
+            if settings.SENDGRID_SANDBOX_MODE:
+                message.mail_settings = MailSettings(
+                    sandbox_mode=SandBoxMode(enable=True)
+                )
+
+            client = SendGridAPIClient(settings.SENDGRID_API_KEY)
+            response = await asyncio.to_thread(client.send, message)
+
+            if 200 <= response.status_code < 300:
+                return {
+                    "status": "sent",
+                    "provider": "sendgrid",
+                    "message_id": response.headers.get("X-Message-Id"),
+                    "status_code": response.status_code,
+                }
+
+            logger.error(
+                "SendGrid returned %s for %s: %s",
+                response.status_code,
+                to,
+                str(response.body)[:500],
+            )
             return {
                 "status": "error",
-                "message": str(e),
-                "provider": "smtp"
+                "provider": "sendgrid",
+                "message": f"SendGrid HTTP {response.status_code}",
+                "status_code": response.status_code,
             }
+
+        except Exception as e:
+            logger.exception(f"SendGrid send failed for {to}: {e}")
+            return {"status": "error", "provider": "sendgrid", "message": str(e)}
 
     async def send_notification(
         self,

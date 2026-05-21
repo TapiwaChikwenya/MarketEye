@@ -1,0 +1,13 @@
+# Apply this change in docker-compose.yml (the dev compose file)
+# ---------------------------------------------------------------
+# Same change as docker-compose.prod.yml:
+#
+# 1. REMOVE the SMTP_* env vars from `backend` and `celery_worker`.
+# 2. ADD these three vars to BOTH services:
+
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-}
+      SENDGRID_FROM_NAME: ${SENDGRID_FROM_NAME:-MarketEye}
+
+# In dev, you typically leave SENDGRID_API_KEY empty so the service
+# falls back to demo mode (logs the email instead of sending).

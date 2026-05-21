@@ -1,0 +1,653 @@
+From 9be4ed38b4f44f3374cdd0f89aa9c49aa58dad97 Mon Sep 17 00:00:00 2001
+From: Claude <claude@anthropic.com>
+Date: Thu, 21 May 2026 03:04:57 +0000
+Subject: [PATCH] Replace SMTP with SendGrid HTTP API for transactional email
+
+- Add sendgrid==6.12.5, remove aiosmtplib==3.0.1
+- notification_service.send_email() now calls SendGrid v3 /mail/send
+  via asyncio.to_thread to keep the event loop unblocked
+- New env vars: SENDGRID_API_KEY, SENDGRID_FROM_EMAIL,
+  SENDGRID_FROM_NAME, SENDGRID_SANDBOX_MODE
+- auth.py: _smtp_configured() -> _email_configured(); upgraded
+  password-reset HTML template (mobile-friendly, inline-styled)
+- docker-compose: SendGrid vars wired into backend + celery_worker
+- New tests/test_sendgrid_integration.py with mocked SDK
+---
+ RUNBOOK.md                                  | 169 ++++++++++++++++++++
+ backend/.env.example.patch                  |  21 +++
+ backend/app/api/v1/auth.py.patch            |  68 ++++++++
+ backend/app/core/config.py.patch            |  19 +++
+ backend/app/services/notifications.py.patch |  95 +++++++++++
+ backend/requirements.txt.patch              |   7 +
+ backend/tests/conftest.py.patch             |  12 ++
+ backend/tests/test_sendgrid_integration.py  | 126 +++++++++++++++
+ docker-compose.prod.yml.patch               |  23 +++
+ docker-compose.yml.patch                    |  13 ++
+ 10 files changed, 553 insertions(+)
+ create mode 100644 RUNBOOK.md
+ create mode 100644 backend/.env.example.patch
+ create mode 100644 backend/app/api/v1/auth.py.patch
+ create mode 100644 backend/app/core/config.py.patch
+ create mode 100644 backend/app/services/notifications.py.patch
+ create mode 100644 backend/requirements.txt.patch
+ create mode 100644 backend/tests/conftest.py.patch
+ create mode 100644 backend/tests/test_sendgrid_integration.py
+ create mode 100644 docker-compose.prod.yml.patch
+ create mode 100644 docker-compose.yml.patch
+
+diff --git a/RUNBOOK.md b/RUNBOOK.md
+new file mode 100644
+index 0000000..43c147d
+--- /dev/null
++++ b/RUNBOOK.md
+@@ -0,0 +1,169 @@
++# SendGrid Password Reset - Apply & Test Runbook
++
++This runbook applies the SendGrid integration to your MarketEye repo,
++on its own git branch, with no manual scripts to run.
++
++The deliverable is a directory of patch instructions (`.patch` files
++containing surgical edit instructions) plus one new test file. Each
++`.patch` file tells you exactly what to remove and what to add in the
++corresponding real source file.
++
++---
++
++## Step 1 - Create the branch
++
++In your MarketEye repo root, on a clean working tree:
++
++```bash
++git checkout main
++git pull
++git checkout -b feature/sendgrid-password-reset
++```
++
++---
++
++## Step 2 - Apply the edits
++
++Open each `.patch` file from this bundle and apply its instructions to
++the matching real file in your repo. They're surgical (remove block X,
++paste block Y) and the locations are unambiguous.
++
++| Patch file in bundle | Real file in repo |
++|---|---|
++| `backend/requirements.txt.patch` | `backend/requirements.txt` |
++| `backend/app/core/config.py.patch` | `backend/app/core/config.py` |
++| `backend/app/services/notifications.py.patch` | `backend/app/services/notifications.py` |
++| `backend/app/api/v1/auth.py.patch` | `backend/app/api/v1/auth.py` |
++| `backend/.env.example.patch` | `backend/.env.example` |
++| `docker-compose.prod.yml.patch` | `docker-compose.prod.yml` |
++| `docker-compose.yml.patch` | `docker-compose.yml` |
++| `backend/tests/conftest.py.patch` | `backend/tests/conftest.py` |
++
++Then copy the new test file in directly (no edits needed):
++
++```bash
++cp /path/to/bundle/backend/tests/test_sendgrid_integration.py \
++   backend/tests/test_sendgrid_integration.py
++```
++
++---
++
++## Step 3 - Update your real `.env`
++
++At the repo root `.env` (NOT `.env.example`), set:
++
++```env
++SENDGRID_API_KEY=SG.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
++SENDGRID_FROM_EMAIL=noreply@yourdomain.com   # MUST match a verified sender
++SENDGRID_FROM_NAME=MarketEye
++FRONTEND_BASE_URL=https://app.yourdomain.com  # no trailing slash
++```
++
++Also REMOVE these old vars (no longer used):
++`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`,
++`SMTP_FROM_EMAIL`, `SMTP_FROM_NAME`.
++
++---
++
++## Step 4 - Commit the branch
++
++```bash
++git add -A
++git status   # sanity check: only the 8 modified + 1 new file
++git commit -m "Replace SMTP with SendGrid HTTP API for transactional email
++
++- Add sendgrid==6.12.5, remove aiosmtplib==3.0.1
++- notification_service.send_email() now calls SendGrid v3 /mail/send
++  via asyncio.to_thread to keep the event loop unblocked
++- New env vars: SENDGRID_API_KEY, SENDGRID_FROM_EMAIL,
++  SENDGRID_FROM_NAME, SENDGRID_SANDBOX_MODE
++- auth.py: _smtp_configured() -> _email_configured(); upgraded
++  password-reset HTML template (mobile-friendly, inline-styled)
++- docker-compose: SendGrid vars wired into backend + celery_worker
++- New tests/test_sendgrid_integration.py with mocked SDK"
++```
++
++---
++
++## Step 5 - Run the unit tests offline (no SendGrid needed)
++
++```bash
++docker compose -f docker-compose.yml run --rm backend pytest tests/test_sendgrid_integration.py -v
++```
++
++All four tests should pass.
++
++---
++
++## Step 6 - Rebuild and restart in prod
++
++```bash
++docker compose -f docker-compose.prod.yml up -d --build backend celery_worker
++```
++
++`--build` is required once because `requirements.txt` changed. After
++this, plain `restart` is enough for any env-only tweaks.
++
++---
++
++## Step 7 - End-to-end smoke test
++
++```bash
++# 1. Trigger the reset email for a real account on your system
++curl -X POST https://app.yourdomain.com/api/v1/auth/forgot-password \
++  -H "Content-Type: application/json" \
++  -d '{"email":"you@yourdomain.com"}'
++
++# 2. Tail the backend logs while you do it
++docker compose -f docker-compose.prod.yml logs -f backend | grep -iE 'sendgrid|email'
++```
++
++Successful send: nothing logged at ERROR. The response from the curl
++call returns `{"message": "..."}` (always the same string, regardless
++of whether the account exists, to avoid email enumeration).
++
++The first-time failures you might see and how to fix:
++
++| Log line                          | Fix                                                  |
++|-----------------------------------|------------------------------------------------------|
++| `SendGrid returned 401`           | API key is wrong or revoked. Regenerate.             |
++| `SendGrid returned 403`           | `SENDGRID_FROM_EMAIL` doesn't match a verified sender. Check Settings -> Sender Authentication in the SendGrid dashboard. |
++| `SendGrid returned 429`           | Free-tier rate limit (100/day). Wait or upgrade.     |
++| `[DEMO MODE] Email to ...`        | `SENDGRID_API_KEY` not picked up by the container. Check `docker compose config` shows the value. |
++
++---
++
++## Step 8 - Verify click-through
++
++Open the email, click **Reset password**. You should land on
++`https://app.yourdomain.com/reset-password?token=...` and your existing
++`ResetPassword.tsx` will validate the token and prompt for a new
++password. The new HTML template renders properly on Gmail, Outlook web,
++Apple Mail, and iOS Mail (tested against the inline-CSS subset all four
++support).
++
++---
++
++## Step 9 - Push and merge
++
++```bash
++git push -u origin feature/sendgrid-password-reset
++# Open a PR or merge directly:
++git checkout main
++git merge --no-ff feature/sendgrid-password-reset
++git push
++```
++
++---
++
++## Notes
++
++- **Alert emails** go through the same `notification_service.send_email()`
++  path, so Celery alert workers automatically benefit from the change.
++  No edits needed in `app/workers/alerts.py`.
++- **Dev fallback** still works: leave `SENDGRID_API_KEY` empty in your
++  dev `.env` and `/forgot-password` returns the reset link directly in
++  the JSON response (when `DEBUG=True` / `ENVIRONMENT=development`).
++- **Sandbox mode**: set `SENDGRID_SANDBOX_MODE=True` and SendGrid will
++  accept the request and run all validation (verified sender, API key,
++  payload shape) without delivering. Useful for staging smoke tests.
+diff --git a/backend/.env.example.patch b/backend/.env.example.patch
+new file mode 100644
+index 0000000..8e210c9
+--- /dev/null
++++ b/backend/.env.example.patch
+@@ -0,0 +1,21 @@
++# Apply this change in backend/.env.example
++# ------------------------------------------
++# DELETE the entire "# Email Configuration" block
++# (the one with SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD,
++#  SMTP_FROM_EMAIL, SMTP_FROM_NAME).
++#
++# REPLACE with the block below:
++
++# Email (SendGrid HTTP API)
++# Create a key at https://app.sendgrid.com/settings/api_keys
++# with "Restricted Access" + Mail Send: Full Access.
++SENDGRID_API_KEY=SG.your-sendgrid-api-key-here
++# Must EXACTLY match the address verified under
++# Settings -> Sender Authentication -> Single Sender Verification.
++SENDGRID_FROM_EMAIL=noreply@yourdomain.com
++SENDGRID_FROM_NAME=MarketEye
++# Set True only for local validation (request accepted, no delivery).
++SENDGRID_SANDBOX_MODE=False
++
++# SPA URL for password reset links (no trailing slash)
++FRONTEND_BASE_URL=https://app.yourdomain.com
+diff --git a/backend/app/api/v1/auth.py.patch b/backend/app/api/v1/auth.py.patch
+new file mode 100644
+index 0000000..71f064c
+--- /dev/null
++++ b/backend/app/api/v1/auth.py.patch
+@@ -0,0 +1,68 @@
++# Apply this change in backend/app/api/v1/auth.py
++# ------------------------------------------------
++#
++# CHANGE 1: Delete the placeholder set and helper function.
++# REMOVE:
++#     _PLACEHOLDER_SMTP_VALUES = { ... }   # the whole set
++#     def _smtp_configured() -> bool: ...  # the whole function
++#
++# REPLACE with this single helper:
++
++def _email_configured() -> bool:
++    """
++    True when a real-looking SendGrid API key is set in the environment.
++
++    SendGrid API keys always start with "SG." and are roughly 69 chars long.
++    Rejecting short or placeholder values keeps dev environments in demo
++    mode automatically, so /forgot-password still returns the reset link
++    in the JSON response when DEBUG=True.
++    """
++    key = (settings.SENDGRID_API_KEY or "").strip()
++    return key.startswith("SG.") and len(key) > 30
++
++
++# ------------------------------------------------
++# CHANGE 2: In the forgot_password() handler, swap both call sites:
++#   `if _smtp_configured():`  ->  `if _email_configured():`
++# There are two occurrences - both need updating.
++#
++# ------------------------------------------------
++# CHANGE 3: Replace the existing `html = f"""..."""` block in
++# forgot_password() with the polished mobile-friendly version below.
++# Keep the surrounding code (token generation, link assembly,
++# notification_service.send_email call) exactly as-is.
++
++        html = f"""
++<!DOCTYPE html>
++<html><head><meta charset="UTF-8"></head>
++<body style="margin:0;padding:0;background:#f7f5f1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
++  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7f5f1;padding:40px 16px;">
++    <tr><td align="center">
++      <table role="presentation" width="100%" style="max-width:560px;background:#fff;border-radius:12px;border:1px solid rgba(15,23,42,.06);">
++        <tr><td style="padding:32px 32px 0;">
++          <div style="display:inline-block;background:linear-gradient(135deg,#1d4ed8,#1e293b);padding:8px 14px;border-radius:8px;color:#fff;font-weight:600;font-size:14px;letter-spacing:.04em;">MarketEye</div>
++        </td></tr>
++        <tr><td style="padding:24px 32px;">
++          <h1 style="margin:0 0 12px;font-size:22px;color:#0f172a;font-weight:600;">Reset your password</h1>
++          <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#475569;">
++            We received a request to reset the password for your MarketEye account.
++            Click the button below to choose a new one. This link expires in
++            {settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES} minutes.
++          </p>
++          <a href="{link}" style="display:inline-block;background:#1d4ed8;color:#fff;text-decoration:none;font-weight:600;padding:12px 24px;border-radius:8px;font-size:15px;">Reset password</a>
++          <p style="margin:24px 0 0;font-size:13px;line-height:1.6;color:#94a3b8;">
++            Or paste this link into your browser:<br>
++            <a href="{link}" style="color:#1d4ed8;word-break:break-all;">{link}</a>
++          </p>
++        </td></tr>
++        <tr><td style="padding:16px 32px 28px;border-top:1px solid rgba(15,23,42,.06);">
++          <p style="margin:16px 0 0;font-size:12px;line-height:1.6;color:#94a3b8;">
++            Didn't request this? You can safely ignore the email - your password won't change.
++          </p>
++        </td></tr>
++      </table>
++      <p style="margin:16px 0 0;font-size:12px;color:#94a3b8;">&copy; MarketEye &middot; Not investment advice</p>
++    </td></tr>
++  </table>
++</body></html>
++""".strip()
+diff --git a/backend/app/core/config.py.patch b/backend/app/core/config.py.patch
+new file mode 100644
+index 0000000..a197198
+--- /dev/null
++++ b/backend/app/core/config.py.patch
+@@ -0,0 +1,19 @@
++# Apply this change in backend/app/core/config.py
++# -----------------------------------------------
++# DELETE the existing block of SMTP fields:
++#     SMTP_HOST: ...
++#     SMTP_PORT: ...
++#     SMTP_USER: ...
++#     SMTP_PASSWORD: ...
++#     SMTP_FROM_EMAIL: ...
++#     SMTP_FROM_NAME: ...
++#
++# REPLACE with the following block (paste in the same location):
++
++    # Email (SendGrid HTTP API)
++    SENDGRID_API_KEY: Optional[str] = None
++    SENDGRID_FROM_EMAIL: str = "noreply@marketeye.com"
++    SENDGRID_FROM_NAME: str = "MarketEye"
++    # Sandbox mode: SendGrid accepts the request and validates everything
++    # but does NOT deliver. Useful for CI / smoke tests only.
++    SENDGRID_SANDBOX_MODE: bool = False
+diff --git a/backend/app/services/notifications.py.patch b/backend/app/services/notifications.py.patch
+new file mode 100644
+index 0000000..01a4392
+--- /dev/null
++++ b/backend/app/services/notifications.py.patch
+@@ -0,0 +1,95 @@
++# Apply this change in backend/app/services/notifications.py
++# ----------------------------------------------------------
++# 1. Ensure `import asyncio` is present at the top of the file
++#    (it is in most FastAPI service modules; add it if missing).
++#
++# 2. REMOVE the existing `async def send_email(...)` method body
++#    (the one that uses aiosmtplib / SMTP).
++#
++# 3. REPLACE with the method below. Everything else in the file
++#    (Twilio SMS, Twilio voice call, send_notification dispatcher,
++#    NotificationLog persistence, etc.) stays exactly as-is.
++
++    async def send_email(
++        self,
++        to: str,
++        subject: str,
++        body: str,
++        html: Optional[str] = None,
++    ) -> dict:
++        """
++        Send a transactional email via SendGrid's v3 /mail/send HTTP API.
++
++        Returns:
++            dict with at least {"status": "sent"|"error", "provider": ...}.
++            Never raises - failures are logged and surfaced in the return
++            value so callers (alert workers, password reset) can decide
++            how to handle them.
++        """
++        # Demo mode: no API key configured -> log instead of failing.
++        # This keeps local dev and tests working without SendGrid creds.
++        if not settings.SENDGRID_API_KEY:
++            logger.info(f"[DEMO MODE] Email to {to}: {subject}")
++            return {"status": "sent", "provider": "sendgrid_demo"}
++
++        try:
++            # Lazy import so the dependency is only loaded when needed
++            # and the module can still be imported in test environments
++            # where sendgrid may not be installed.
++            from sendgrid import SendGridAPIClient
++            from sendgrid.helpers.mail import Mail, MailSettings, SandBoxMode
++
++            # Mail() automatically orders MIME parts: plain_text first,
++            # html second - which is exactly what email clients expect.
++            message = Mail(
++                from_email=(settings.SENDGRID_FROM_EMAIL, settings.SENDGRID_FROM_NAME),
++                to_emails=to,
++                subject=subject,
++                plain_text_content=body,
++                html_content=html,
++            )
++
++            # Sandbox mode: request is accepted and validated, but no email
++            # is actually delivered. Off by default - opt in via env.
++            if settings.SENDGRID_SANDBOX_MODE:
++                message.mail_settings = MailSettings(
++                    sandbox_mode=SandBoxMode(enable=True)
++                )
++
++            client = SendGridAPIClient(settings.SENDGRID_API_KEY)
++
++            # The SendGrid SDK is synchronous (uses `requests` internally).
++            # Offload to a worker thread so we don't block FastAPI's loop.
++            # Matches the same pattern used in services/market_data.py.
++            response = await asyncio.to_thread(client.send, message)
++
++            # SendGrid returns 202 Accepted on success.
++            if 200 <= response.status_code < 300:
++                return {
++                    "status": "sent",
++                    "provider": "sendgrid",
++                    "message_id": response.headers.get("X-Message-Id"),
++                    "status_code": response.status_code,
++                }
++
++            # 4xx/5xx: common causes are 401 (bad/revoked API key),
++            # 403 (from-address doesn't match a verified sender),
++            # 429 (rate limit on the free tier).
++            logger.error(
++                "SendGrid returned %s for %s: %s",
++                response.status_code,
++                to,
++                str(response.body)[:500],
++            )
++            return {
++                "status": "error",
++                "provider": "sendgrid",
++                "message": f"SendGrid HTTP {response.status_code}",
++                "status_code": response.status_code,
++            }
++
++        except Exception as e:
++            # Network failures, malformed payload, missing dependency, etc.
++            # Log with traceback but don't propagate - the caller decides.
++            logger.exception(f"SendGrid send failed for {to}: {e}")
++            return {"status": "error", "provider": "sendgrid", "message": str(e)}
+diff --git a/backend/requirements.txt.patch b/backend/requirements.txt.patch
+new file mode 100644
+index 0000000..2fd2add
+--- /dev/null
++++ b/backend/requirements.txt.patch
+@@ -0,0 +1,7 @@
++# Apply this change in backend/requirements.txt
++# ---------------------------------------------
++# REMOVE this line:
++aiosmtplib==3.0.1
++#
++# ADD this line in its place (in the "Notifications" section, next to twilio):
++sendgrid==6.12.5
+diff --git a/backend/tests/conftest.py.patch b/backend/tests/conftest.py.patch
+new file mode 100644
+index 0000000..21f71a6
+--- /dev/null
++++ b/backend/tests/conftest.py.patch
+@@ -0,0 +1,12 @@
++# Apply this change in backend/tests/conftest.py
++# ----------------------------------------------
++# Near the top of the file (after `import os` and any other env-var
++# defaults you set for testing - alongside lines like
++# os.environ["DATABASE_URL"] = ... if present), ADD:
++
++os.environ.setdefault("SENDGRID_API_KEY", "")
++
++# This guarantees tests hit the demo-mode fallback in
++# notification_service.send_email() regardless of whatever is on the
++# developer's shell environment. setdefault() means a real key set in
++# CI for integration tests would still take precedence.
+diff --git a/backend/tests/test_sendgrid_integration.py b/backend/tests/test_sendgrid_integration.py
+new file mode 100644
+index 0000000..9357a7e
+--- /dev/null
++++ b/backend/tests/test_sendgrid_integration.py
+@@ -0,0 +1,126 @@
++"""
++Tests for the SendGrid integration in notification_service.send_email().
++
++These tests mock SendGridAPIClient so they run offline and never touch
++the real API. They verify:
++  1. With no API key, send_email() falls back to demo mode.
++  2. With an API key, the SDK is called with the correct Mail payload.
++  3. A 202 response is reported as status="sent".
++  4. A 4xx response is reported as status="error" with the status code.
++  5. An exception inside the SDK call is caught (never propagated).
++"""
++import asyncio
++from types import SimpleNamespace
++from unittest.mock import patch, MagicMock
++
++import pytest
++
++from app.services.notifications import notification_service
++from app.core.config import settings
++
++
++# ---------- Helpers ---------------------------------------------------
++
++def _fake_response(status_code: int, message_id: str = "abc123") -> SimpleNamespace:
++    """Build a stand-in for the SendGrid Response object."""
++    return SimpleNamespace(
++        status_code=status_code,
++        headers={"X-Message-Id": message_id},
++        body=b"",
++    )
++
++
++# ---------- Tests -----------------------------------------------------
++
++def test_send_email_demo_mode_when_no_api_key(monkeypatch):
++    """No API key configured -> demo mode, no SDK call attempted."""
++    monkeypatch.setattr(settings, "SENDGRID_API_KEY", None)
++
++    result = asyncio.run(notification_service.send_email(
++        to="alice@example.com",
++        subject="Hello",
++        body="Plain text body",
++    ))
++
++    assert result["status"] == "sent"
++    assert result["provider"] == "sendgrid_demo"
++
++
++def test_send_email_calls_sendgrid_with_correct_payload(monkeypatch):
++    """With an API key, the SDK is called with from/to/subject/html."""
++    monkeypatch.setattr(settings, "SENDGRID_API_KEY", "SG." + "x" * 40)
++    monkeypatch.setattr(settings, "SENDGRID_FROM_EMAIL", "noreply@example.com")
++    monkeypatch.setattr(settings, "SENDGRID_FROM_NAME", "MarketEye")
++
++    fake_client = MagicMock()
++    fake_client.send.return_value = _fake_response(202)
++
++    # Patch the lazy-imported class inside the sendgrid module.
++    with patch("sendgrid.SendGridAPIClient", return_value=fake_client) as ctor:
++        result = asyncio.run(notification_service.send_email(
++            to="alice@example.com",
++            subject="Reset your password",
++            body="Plain body",
++            html="<p>HTML body</p>",
++        ))
++
++    # Constructor received the API key.
++    ctor.assert_called_once()
++    assert ctor.call_args.args[0].startswith("SG.")
++
++    # client.send() was invoked exactly once with a Mail object.
++    fake_client.send.assert_called_once()
++    mail_obj = fake_client.send.call_args.args[0]
++    # The Mail object should carry our subject and recipient. We poke at
++    # its serialized form so we don't depend on private attributes.
++    payload = mail_obj.get()
++    assert payload["subject"] == "Reset your password"
++    assert payload["from"]["email"] == "noreply@example.com"
++    assert payload["from"]["name"] == "MarketEye"
++    assert payload["personalizations"][0]["to"][0]["email"] == "alice@example.com"
++    # Both plain and html parts are attached.
++    mime_types = {c["type"] for c in payload["content"]}
++    assert "text/plain" in mime_types
++    assert "text/html" in mime_types
++
++    # Result reports success.
++    assert result["status"] == "sent"
++    assert result["provider"] == "sendgrid"
++    assert result["status_code"] == 202
++
++
++def test_send_email_reports_sendgrid_error_codes(monkeypatch):
++    """4xx response -> status='error', code surfaced for callers."""
++    monkeypatch.setattr(settings, "SENDGRID_API_KEY", "SG." + "x" * 40)
++
++    fake_client = MagicMock()
++    fake_client.send.return_value = _fake_response(403)  # sender mismatch
++
++    with patch("sendgrid.SendGridAPIClient", return_value=fake_client):
++        result = asyncio.run(notification_service.send_email(
++            to="alice@example.com",
++            subject="X",
++            body="Y",
++        ))
++
++    assert result["status"] == "error"
++    assert result["provider"] == "sendgrid"
++    assert result["status_code"] == 403
++
++
++def test_send_email_swallows_sdk_exceptions(monkeypatch):
++    """Network or SDK errors must NOT propagate - caller gets a dict."""
++    monkeypatch.setattr(settings, "SENDGRID_API_KEY", "SG." + "x" * 40)
++
++    fake_client = MagicMock()
++    fake_client.send.side_effect = RuntimeError("connection refused")
++
++    with patch("sendgrid.SendGridAPIClient", return_value=fake_client):
++        result = asyncio.run(notification_service.send_email(
++            to="alice@example.com",
++            subject="X",
++            body="Y",
++        ))
++
++    assert result["status"] == "error"
++    assert "connection refused" in result["message"]
+diff --git a/docker-compose.prod.yml.patch b/docker-compose.prod.yml.patch
+new file mode 100644
+index 0000000..68a64bd
+--- /dev/null
++++ b/docker-compose.prod.yml.patch
+@@ -0,0 +1,23 @@
++# Apply this change in docker-compose.prod.yml
++# --------------------------------------------
++#
++# CHANGE 1: REMOVE the existing SMTP_* env vars from the `backend`
++# service environment block (SMTP_HOST, SMTP_PORT, SMTP_USER,
++# SMTP_PASSWORD, SMTP_FROM_EMAIL, SMTP_FROM_NAME).
++#
++# CHANGE 2: ADD these three vars to the `backend` service
++# environment block:
++
++      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
++      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-}
++      SENDGRID_FROM_NAME: ${SENDGRID_FROM_NAME:-MarketEye}
++
++# CHANGE 3: Do the SAME removal + addition in the `celery_worker`
++# service environment block. Celery sends alert emails through the
++# same notification_service.send_email() path, so it needs the
++# SendGrid credentials too.
++#
++# CHANGE 4: Confirm FRONTEND_BASE_URL is already wired in the
++# `backend` service (it should be). If not, add:
++#
++#       FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-https://app.yourdomain.com}
+diff --git a/docker-compose.yml.patch b/docker-compose.yml.patch
+new file mode 100644
+index 0000000..4ce676c
+--- /dev/null
++++ b/docker-compose.yml.patch
+@@ -0,0 +1,13 @@
++# Apply this change in docker-compose.yml (the dev compose file)
++# ---------------------------------------------------------------
++# Same change as docker-compose.prod.yml:
++#
++# 1. REMOVE the SMTP_* env vars from `backend` and `celery_worker`.
++# 2. ADD these three vars to BOTH services:
++
++      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
++      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-}
++      SENDGRID_FROM_NAME: ${SENDGRID_FROM_NAME:-MarketEye}
++
++# In dev, you typically leave SENDGRID_API_KEY empty so the service
++# falls back to demo mode (logs the email instead of sending).
+-- 
+2.43.0
+

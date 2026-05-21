@@ -1,0 +1,19 @@
+# Apply this change in backend/app/core/config.py
+# -----------------------------------------------
+# DELETE the existing block of SMTP fields:
+#     SMTP_HOST: ...
+#     SMTP_PORT: ...
+#     SMTP_USER: ...
+#     SMTP_PASSWORD: ...
+#     SMTP_FROM_EMAIL: ...
+#     SMTP_FROM_NAME: ...
+#
+# REPLACE with the following block (paste in the same location):
+
+    # Email (SendGrid HTTP API)
+    SENDGRID_API_KEY: Optional[str] = None
+    SENDGRID_FROM_EMAIL: str = "noreply@marketeye.com"
+    SENDGRID_FROM_NAME: str = "MarketEye"
+    # Sandbox mode: SendGrid accepts the request and validates everything
+    # but does NOT deliver. Useful for CI / smoke tests only.
+    SENDGRID_SANDBOX_MODE: bool = False

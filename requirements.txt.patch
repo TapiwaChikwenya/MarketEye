@@ -1,0 +1,7 @@
+# Apply this change in backend/requirements.txt
+# ---------------------------------------------
+# REMOVE this line:
+aiosmtplib==3.0.1
+#
+# ADD this line in its place (in the "Notifications" section, next to twilio):
+sendgrid==6.12.5
