@@ -14,6 +14,7 @@ from app.models.alert import AlertRule, ConditionType, NotificationChannel, Repe
 from app.models.asset import Asset
 from app.models.user import User
 from app.models.notification import NotificationLog, EventType, NotificationStatus
+from app.services.email_templates import build_alert_email_context
 from app.services.notifications import notification_service
 
 logger = logging.getLogger(__name__)
@@ -94,18 +95,13 @@ async def _send_push_notification(user: User, asset: Asset, alert: AlertRule, me
 async def _send_email_notification(
     user: User, asset: Asset, alert: AlertRule, message: str
 ) -> dict:
-    subject = f"MarketEye Alert: {asset.symbol}"
-    triggered_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
-    return await notification_service.send_alert_email(
-        to=user.email,
-        subject=subject,
-        body=message,
-        symbol=asset.symbol,
-        asset_name=asset.name or asset.symbol,
-        condition_text=_condition_text(alert),
-        price=str(asset.current_price),
-        triggered_at=triggered_at,
+    ctx = build_alert_email_context(
+        user=user,
+        asset=asset,
+        alert=alert,
+        frontend_base_url=settings.FRONTEND_BASE_URL,
     )
+    return await notification_service.send_alert_email(to=user.email, ctx=ctx)
 
 
 async def _dispatch_alert_notifications(
@@ -258,7 +254,13 @@ async def _trigger_alert(alert: AlertRule, session):
                 return
 
     message = alert.custom_message or _build_alert_message(alert, asset)
-    subject = f"MarketEye Alert: {asset.symbol}"
+    email_ctx = build_alert_email_context(
+        user=user,
+        asset=asset,
+        alert=alert,
+        frontend_base_url=settings.FRONTEND_BASE_URL,
+    )
+    subject = email_ctx.email_subject
 
     send_result = await _dispatch_alert_notifications(alert, user, asset, message)
 
