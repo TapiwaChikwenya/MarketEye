@@ -37,6 +37,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: marketeye_backend
+    env_file:
+      - ./backend/.env
     environment:
       DATABASE_URL: postgresql+asyncpg://marketeye:marketeye123@postgres:5432/marketeye
       DATABASE_URL_SYNC: postgresql://marketeye:marketeye123@postgres:5432/marketeye
@@ -44,6 +46,7 @@ services:
       SECRET_KEY: ${SECRET_KEY:-super-secret-key-change-in-production}
       ENVIRONMENT: development
       DEBUG: "True"
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5173}
       CORS_ORIGINS: '["http://localhost:5173","http://localhost:3000"]'
       FINNHUB_API_KEY: ${FINNHUB_API_KEY:-}
       ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY:-}

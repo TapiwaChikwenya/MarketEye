@@ -81,11 +81,17 @@ cd MarketEye
 #   CORS_ORIGINS=http://<server-ip>,http://localhost
 #   VITE_API_URL=   # leave empty to auto-use current host
 
-# 3) Build and start production stack
+# 3) Build and start production stack (API + workers; no UI on :5173)
 docker compose -f docker-compose.prod.yml up -d --build
 
+# Optional: nginx static UI on port 80 only (does not use :5173)
+# docker compose -f docker-compose.prod.yml --profile prod-ui up -d --build frontend
+
+# Local UI development (live reload): npm run dev → http://localhost:5173
+
 # 4) Access
-# App:      http://<server-ip>/
+# App (prod-ui profile): http://<server-ip>/
+# App (local dev):       http://localhost:5173
 # API docs: http://<server-ip>/docs
 # Health:   http://<server-ip>/health
 ```
@@ -155,11 +161,14 @@ npm run dev
 
 ## 🔐 Environment Variables
 
+Copy `backend/.env.example` to `backend/.env` and adjust values. The snippets below highlight the most important groups.
+
 ### Backend (.env)
 
 ```env
-# Database
+# Database (async + sync URLs for tooling)
 DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/marketeye
+DATABASE_URL_SYNC=postgresql://user:password@localhost:5432/marketeye
 
 # Redis
 REDIS_URL=redis://localhost:6379/0
@@ -167,27 +176,69 @@ REDIS_URL=redis://localhost:6379/0
 # JWT
 SECRET_KEY=your-secret-key-here
 ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
+ACCESS_TOKEN_EXPIRE_MINUTES=1440
 
-# Twilio (for SMS/Calls)
+# Password reset emails (links point to your SPA)
+PASSWORD_RESET_TOKEN_EXPIRE_MINUTES=60
+FRONTEND_BASE_URL=http://localhost:5173
+
+# Twilio (SMS/Calls)
 TWILIO_ACCOUNT_SID=your-account-sid
 TWILIO_AUTH_TOKEN=your-auth-token
 TWILIO_PHONE_NUMBER=your-twilio-number
 
-# Email (SMTP)
+# Email (SMTP) — see [SMTP setup](#smtp-setup-email-alerts--password-reset)
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
-SMTP_PASSWORD=your-app-password
+SMTP_PASSWORD=your-app-specific-password
+SMTP_FROM_EMAIL=noreply@yourdomain.com
+SMTP_FROM_NAME=MarketEye
 
-# Market Data APIs
-ALPHA_VANTAGE_API_KEY=your-api-key (optional)
-COINGECKO_API_KEY=your-api-key (optional, free tier doesn't need it)
+# Market Data APIs (optional)
+ALPHA_VANTAGE_API_KEY=your-api-key
+COINGECKO_API_KEY=
 
 # Application
 ENVIRONMENT=development
-CORS_ORIGINS=http://localhost:5173
+CORS_ORIGINS=["http://localhost:5173","http://localhost:3000"]
 ```
+
+### SMTP setup (email alerts & password reset)
+
+SMTP is used for **transactional email**: alert notifications, and **forgot-password** messages that contain a reset link.
+
+1. **Choose a provider** (Gmail, SendGrid, Amazon SES, your own MTA, etc.). For **Gmail**, use an [App Password](https://support.google.com/accounts/answer/185833) on a Google account with 2-Step Verification enabled—do not use your normal login password.
+2. **Set the variables** in `backend/.env`:
+   - `SMTP_HOST`, `SMTP_PORT` — typically `smtp.gmail.com` and `587` with STARTTLS (the app uses STARTTLS).
+   - `SMTP_USER` / `SMTP_PASSWORD` — provider credentials (for Gmail, the app password).
+   - `SMTP_FROM_EMAIL` / `SMTP_FROM_NAME` — what recipients see as the sender (use a domain or address you are allowed to send from).
+3. **Set `FRONTEND_BASE_URL`** to the exact origin users use in the browser, with **no trailing slash** (for example `https://app.example.com` in production). Password reset links are built as `{FRONTEND_BASE_URL}/reset-password?token=...`. If this is wrong, links in emails will point at the wrong host.
+4. **Without SMTP**, the API still accepts forgot-password requests, but email is not delivered; the server logs a demo placeholder instead. Configure SMTP before relying on password reset or email alerts in production.
+
+### Admin console and API
+
+Access is limited to users with **`is_superuser = true`** in the database (the `users` table).
+
+**Grant admin access (PostgreSQL example):**
+
+```sql
+UPDATE users SET is_superuser = true WHERE email = 'you@example.com';
+```
+
+**Web UI:** sign in, then open **`/admin`** (for example `http://localhost:5173/admin` in local dev). The navbar shows an **Admin** link when your account is a superuser. Non-admin users are redirected away from `/admin`.
+
+**HTTP API:** all routes are under **`/api/v1/admin`** and require a **Bearer JWT** from `POST /api/v1/auth/login` (same token as the rest of the app). Examples:
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/api/v1/admin/overview` | Aggregated usage (users, alerts, tracked assets, cache hit/miss, etc.) |
+| `GET` | `/api/v1/admin/users` | Paginated user list (`skip`, `limit` query params) |
+| `PATCH` | `/api/v1/admin/users/{user_id}` | Update `is_active` / `is_superuser` |
+| `GET` | `/api/v1/admin/system/health` | Uptime, DB/Redis latency, configured TTLs |
+| `GET` | `/api/v1/admin/stocks/usage` | Top tracked symbols |
+
+Interactive documentation: **[`/docs`](http://localhost:8000/docs)** (Swagger UI) — expand the **Admin** tag. In production, replace the host with your deployed API origin.
 
 ### Frontend (.env)
 

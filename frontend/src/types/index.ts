@@ -10,6 +10,7 @@ export interface User {
   quiet_hours_end?: string;
   subscription_tier: 'free' | 'pro';
   is_active: boolean;
+  is_superuser?: boolean;
   email_verified: boolean;
   phone_verified: boolean;
 }

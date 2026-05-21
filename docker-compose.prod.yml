@@ -37,6 +37,8 @@ services:
       dockerfile: Dockerfile
     container_name: marketeye_backend
     restart: unless-stopped
+    env_file:
+      - ./backend/.env
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-marketeye}:${POSTGRES_PASSWORD:-marketeye123}@postgres:5432/${POSTGRES_DB:-marketeye}
       DATABASE_URL_SYNC: postgresql://${POSTGRES_USER:-marketeye}:${POSTGRES_PASSWORD:-marketeye123}@postgres:5432/${POSTGRES_DB:-marketeye}
@@ -44,6 +46,7 @@ services:
       SECRET_KEY: ${SECRET_KEY}
       ENVIRONMENT: production
       DEBUG: "False"
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5173}
       CORS_ORIGINS: '${CORS_ORIGINS:-["http://localhost","http://127.0.0.1"]}'
       FINNHUB_API_KEY: ${FINNHUB_API_KEY:-}
       ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY:-}
@@ -100,7 +103,11 @@ services:
         condition: service_healthy
     command: celery -A app.celery_app beat --loglevel=info
 
+  # Optional prod static UI on :80 only. Does NOT bind :5173 — use `npm run dev` for local UI work.
+  # Start with: docker compose -f docker-compose.prod.yml --profile prod-ui up -d --build frontend
   frontend:
+    profiles:
+      - prod-ui
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
@@ -110,8 +117,6 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
-      # Same nginx UI as :80 — keeps http://localhost:5173 working after `docker compose -f docker-compose.prod.yml up`
-      - "5173:80"
     depends_on:
       - backend
 
