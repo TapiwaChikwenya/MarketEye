@@ -1,0 +1,12 @@
+# Apply this change in backend/tests/conftest.py
+# ----------------------------------------------
+# Near the top of the file (after `import os` and any other env-var
+# defaults you set for testing - alongside lines like
+# os.environ["DATABASE_URL"] = ... if present), ADD:
+
+os.environ.setdefault("SENDGRID_API_KEY", "")
+
+# This guarantees tests hit the demo-mode fallback in
+# notification_service.send_email() regardless of whatever is on the
+# developer's shell environment. setdefault() means a real key set in
+# CI for integration tests would still take precedence.

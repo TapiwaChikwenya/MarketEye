@@ -1,0 +1,68 @@
+# Apply this change in backend/app/api/v1/auth.py
+# ------------------------------------------------
+#
+# CHANGE 1: Delete the placeholder set and helper function.
+# REMOVE:
+#     _PLACEHOLDER_SMTP_VALUES = { ... }   # the whole set
+#     def _smtp_configured() -> bool: ...  # the whole function
+#
+# REPLACE with this single helper:
+
+def _email_configured() -> bool:
+    """
+    True when a real-looking SendGrid API key is set in the environment.
+
+    SendGrid API keys always start with "SG." and are roughly 69 chars long.
+    Rejecting short or placeholder values keeps dev environments in demo
+    mode automatically, so /forgot-password still returns the reset link
+    in the JSON response when DEBUG=True.
+    """
+    key = (settings.SENDGRID_API_KEY or "").strip()
+    return key.startswith("SG.") and len(key) > 30
+
+
+# ------------------------------------------------
+# CHANGE 2: In the forgot_password() handler, swap both call sites:
+#   `if _smtp_configured():`  ->  `if _email_configured():`
+# There are two occurrences - both need updating.
+#
+# ------------------------------------------------
+# CHANGE 3: Replace the existing `html = f"""..."""` block in
+# forgot_password() with the polished mobile-friendly version below.
+# Keep the surrounding code (token generation, link assembly,
+# notification_service.send_email call) exactly as-is.
+
+        html = f"""
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f7f5f1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7f5f1;padding:40px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" style="max-width:560px;background:#fff;border-radius:12px;border:1px solid rgba(15,23,42,.06);">
+        <tr><td style="padding:32px 32px 0;">
+          <div style="display:inline-block;background:linear-gradient(135deg,#1d4ed8,#1e293b);padding:8px 14px;border-radius:8px;color:#fff;font-weight:600;font-size:14px;letter-spacing:.04em;">MarketEye</div>
+        </td></tr>
+        <tr><td style="padding:24px 32px;">
+          <h1 style="margin:0 0 12px;font-size:22px;color:#0f172a;font-weight:600;">Reset your password</h1>
+          <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#475569;">
+            We received a request to reset the password for your MarketEye account.
+            Click the button below to choose a new one. This link expires in
+            {settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES} minutes.
+          </p>
+          <a href="{link}" style="display:inline-block;background:#1d4ed8;color:#fff;text-decoration:none;font-weight:600;padding:12px 24px;border-radius:8px;font-size:15px;">Reset password</a>
+          <p style="margin:24px 0 0;font-size:13px;line-height:1.6;color:#94a3b8;">
+            Or paste this link into your browser:<br>
+            <a href="{link}" style="color:#1d4ed8;word-break:break-all;">{link}</a>
+          </p>
+        </td></tr>
+        <tr><td style="padding:16px 32px 28px;border-top:1px solid rgba(15,23,42,.06);">
+          <p style="margin:16px 0 0;font-size:12px;line-height:1.6;color:#94a3b8;">
+            Didn't request this? You can safely ignore the email - your password won't change.
+          </p>
+        </td></tr>
+      </table>
+      <p style="margin:16px 0 0;font-size:12px;color:#94a3b8;">&copy; MarketEye &middot; Not investment advice</p>
+    </td></tr>
+  </table>
+</body></html>
+""".strip()

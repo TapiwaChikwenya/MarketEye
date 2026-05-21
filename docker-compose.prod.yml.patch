@@ -1,0 +1,23 @@
+# Apply this change in docker-compose.prod.yml
+# --------------------------------------------
+#
+# CHANGE 1: REMOVE the existing SMTP_* env vars from the `backend`
+# service environment block (SMTP_HOST, SMTP_PORT, SMTP_USER,
+# SMTP_PASSWORD, SMTP_FROM_EMAIL, SMTP_FROM_NAME).
+#
+# CHANGE 2: ADD these three vars to the `backend` service
+# environment block:
+
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-}
+      SENDGRID_FROM_NAME: ${SENDGRID_FROM_NAME:-MarketEye}
+
+# CHANGE 3: Do the SAME removal + addition in the `celery_worker`
+# service environment block. Celery sends alert emails through the
+# same notification_service.send_email() path, so it needs the
+# SendGrid credentials too.
+#
+# CHANGE 4: Confirm FRONTEND_BASE_URL is already wired in the
+# `backend` service (it should be). If not, add:
+#
+#       FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-https://app.yourdomain.com}

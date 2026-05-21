@@ -48,9 +48,6 @@ services:
       DEBUG: "True"
       FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5173}
       CORS_ORIGINS: '["http://localhost:5173","http://localhost:3000"]'
-      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
-      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-}
-      SENDGRID_FROM_NAME: ${SENDGRID_FROM_NAME:-MarketEye}
       FINNHUB_API_KEY: ${FINNHUB_API_KEY:-}
       ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY:-}
     ports:
@@ -70,14 +67,13 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: marketeye_celery_worker
+    env_file:
+      - ./backend/.env
     environment:
       DATABASE_URL: postgresql+asyncpg://marketeye:marketeye123@postgres:5432/marketeye
       DATABASE_URL_SYNC: postgresql://marketeye:marketeye123@postgres:5432/marketeye
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:-super-secret-key-change-in-production}
-      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
-      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-}
-      SENDGRID_FROM_NAME: ${SENDGRID_FROM_NAME:-MarketEye}
       FINNHUB_API_KEY: ${FINNHUB_API_KEY:-}
       ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY:-}
     volumes:
