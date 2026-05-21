@@ -231,12 +231,24 @@ async def send_test_notification(
         if not recipient:
             raise HTTPException(status_code=400, detail="Phone number not configured")
 
-    result = await notification_service.send_notification(
-        channel=request.channel,
-        to=recipient,
-        message=message,
-        subject="MarketEye Test Notification"
-    )
+    if request.channel == "EMAIL":
+        result = await notification_service.send_alert_email(
+            to=recipient,
+            subject="MarketEye Test Notification",
+            body=message,
+            symbol="TEST",
+            asset_name="Test Asset",
+            condition_text="test notification",
+            price="0.00",
+            triggered_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
+        )
+    else:
+        result = await notification_service.send_notification(
+            channel=request.channel,
+            to=recipient,
+            message=message,
+            subject="MarketEye Test Notification",
+        )
 
     log_entry = NotificationLog(
         user_id=current_user.id,

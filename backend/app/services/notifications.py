@@ -6,6 +6,7 @@ import logging
 from typing import Optional
 from twilio.rest import Client
 from app.core.config import settings
+from app.services.email_templates import build_alert_email_html
 
 logger = logging.getLogger(__name__)
 
@@ -191,12 +192,36 @@ class NotificationService:
             logger.exception(f"SendGrid send failed for {to}: {e}")
             return {"status": "error", "provider": "sendgrid", "message": str(e)}
 
+    async def send_alert_email(
+        self,
+        to: str,
+        subject: str,
+        body: str,
+        *,
+        symbol: str,
+        asset_name: str,
+        condition_text: str,
+        price: str,
+        triggered_at: str,
+    ) -> dict:
+        """Send a formatted HTML alert email via SendGrid."""
+        html = build_alert_email_html(
+            symbol=symbol,
+            asset_name=asset_name,
+            message=body,
+            condition_text=condition_text,
+            price=price,
+            triggered_at=triggered_at,
+        )
+        return await self.send_email(to, subject, body, html=html)
+
     async def send_notification(
         self,
         channel: str,
         to: str,
         message: str,
-        subject: Optional[str] = None
+        subject: Optional[str] = None,
+        html: Optional[str] = None,
     ) -> dict:
         """
         Send notification via specified channel.
@@ -206,6 +231,7 @@ class NotificationService:
             to: Recipient (phone number or email)
             message: Message content
             subject: Email subject (for EMAIL channel)
+            html: Optional HTML body (EMAIL channel only)
 
         Returns:
             Dict with status
@@ -215,7 +241,9 @@ class NotificationService:
         elif channel == "CALL":
             return await self.make_call(to, message)
         elif channel == "EMAIL":
-            return await self.send_email(to, subject or "MarketEye Alert", message)
+            return await self.send_email(
+                to, subject or "MarketEye Alert", message, html=html
+            )
         else:
             return {"status": "error", "message": f"Unknown channel: {channel}"}
 
