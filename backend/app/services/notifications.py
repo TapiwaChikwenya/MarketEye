@@ -6,6 +6,11 @@ import logging
 from typing import Optional
 from twilio.rest import Client
 from app.core.config import settings
+from app.services.email_templates import (
+    AlertEmailContext,
+    build_alert_email_html,
+    build_alert_email_plain,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -191,12 +196,19 @@ class NotificationService:
             logger.exception(f"SendGrid send failed for {to}: {e}")
             return {"status": "error", "provider": "sendgrid", "message": str(e)}
 
+    async def send_alert_email(self, to: str, ctx: AlertEmailContext) -> dict:
+        """Send a trader-focused HTML + plain-text alert email via SendGrid."""
+        plain = build_alert_email_plain(ctx)
+        html = build_alert_email_html(ctx)
+        return await self.send_email(to, ctx.email_subject, plain, html=html)
+
     async def send_notification(
         self,
         channel: str,
         to: str,
         message: str,
-        subject: Optional[str] = None
+        subject: Optional[str] = None,
+        html: Optional[str] = None,
     ) -> dict:
         """
         Send notification via specified channel.
@@ -206,6 +218,7 @@ class NotificationService:
             to: Recipient (phone number or email)
             message: Message content
             subject: Email subject (for EMAIL channel)
+            html: Optional HTML body (EMAIL channel only)
 
         Returns:
             Dict with status
@@ -215,7 +228,9 @@ class NotificationService:
         elif channel == "CALL":
             return await self.make_call(to, message)
         elif channel == "EMAIL":
-            return await self.send_email(to, subject or "MarketEye Alert", message)
+            return await self.send_email(
+                to, subject or "MarketEye Alert", message, html=html
+            )
         else:
             return {"status": "error", "message": f"Unknown channel: {channel}"}
 
