@@ -10,6 +10,9 @@ from app.core.config import settings
 # Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+ACCESS_TOKEN_TYPE = "access"
+PASSWORD_RESET_TOKEN_TYPE = "password_reset"
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash."""
@@ -30,7 +33,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         expire = datetime.utcnow() + timedelta(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "typ": ACCESS_TOKEN_TYPE})
     encoded_jwt = jwt.encode(
         to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
     )
@@ -38,17 +41,22 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 
 def decode_access_token(token: str) -> Optional[dict]:
-    """Decode and verify a JWT token."""
+    """Decode an API access token.
+
+    Password-reset JWTs share the signing key but carry ``typ=password_reset``.
+    Those must not authenticate API calls. Tokens issued before ``typ`` was
+    set are still accepted so existing sessions keep working.
+    """
     try:
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
-        return payload
     except JWTError:
         return None
-
-
-PASSWORD_RESET_TOKEN_TYPE = "password_reset"
+    token_type = payload.get("typ")
+    if token_type is not None and token_type != ACCESS_TOKEN_TYPE:
+        return None
+    return payload
 
 
 def create_password_reset_token(user_id: str) -> str:

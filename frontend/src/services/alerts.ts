@@ -14,8 +14,24 @@ export type ConditionType =
 export type NotificationChannel = 'SMS' | 'CALL' | 'PUSH' | 'EMAIL' | 'MULTI';
 export type RepeatBehavior = 'ONE_TIME' | 'ONCE_PER_DAY' | 'ONCE_PER_HOUR' | 'UNLIMITED';
 
+export const SUPPORTED_CONDITION_TYPES: ConditionType[] = [
+  'PRICE_ABOVE',
+  'PRICE_BELOW',
+  'PERCENT_CHANGE_UP',
+  'PERCENT_CHANGE_DOWN',
+];
+
+export function conditionLabel(value: string | undefined): string {
+  if (!value) return 'Alert';
+  const key = value.toUpperCase() as ConditionType;
+  return CONDITION_TYPE_LABELS[key] || value;
+}
+
 export interface CreateAlertData {
   asset_id?: string;
+  symbol?: string;
+  asset_type?: string;
+  asset_name?: string;
   name?: string;
   condition_type: ConditionType;
   threshold_value: string;

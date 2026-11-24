@@ -55,12 +55,14 @@ flowchart LR
 - **Redis-Backed Shared Cache**: Cache is stored in Redis under `marketeye:price:{type}:{SYMBOL}` keys, shared across the backend and all Celery workers. Falls back to an in-memory dict if Redis is unavailable.
 
 ## Functional Flow (Typical Alert Creation & Trigger)
-1. User authenticates and creates an alert via `/api/v1/alerts`.
+1. User authenticates and creates an alert via `/api/v1/alerts`. The UI sends a real asset UUID when it has one. Trending cards only have a ticker, so the API resolves or creates an `assets` row from `symbol` before insert. Volume, market-cap, and portfolio conditions are rejected with 400 until the worker evaluates them.
 2. Alert stored in PostgreSQL; any cache warmed in Redis if enabled.
-3. Celery alert worker runs on schedule, fetches latest prices via `ProviderRegistry`.
-4. Worker evaluates alert conditions, writes status back to PostgreSQL.
-5. When triggered, `NotificationService` sends SMS/call/email (or demo-mode logs).
+3. Celery alert worker runs on schedule, fetches latest prices via `ProviderRegistry` for rows in `assets`.
+4. Worker evaluates price and percent-change conditions. Quiet hours use the user's clock and wrap overnight (the settings default is 22:00–08:00).
+5. When the condition matches, `NotificationService` sends SMS/call/email (or demo-mode logs). A one-time alert is deactivated only after `status=sent`. A failed send is logged and the rule stays active for the next pass.
 6. Frontend polls or refreshes data to reflect alert status.
+
+Password-reset JWTs are signed with the same key as access tokens and carry `typ=password_reset`. `decode_access_token` rejects any `typ` other than `access`, so a reset link cannot call authenticated routes.
 
 ## Failure Paths & Mitigations
 - **Market data provider slow/unavailable**: Circuit breaker skips failing providers; fallback chain tries alternatives; stale cache serves last-known-good data.
@@ -109,5 +111,6 @@ flowchart LR
 - Backend not starting: confirm required env vars and DB reachable.
 - Market data empty: check circuit breaker logs; verify `FINNHUB_API_KEY` is set; review provider rate limits.
 - Only crypto showing: yfinance rate-limited and no Finnhub key set; add `FINNHUB_API_KEY`.
-- Notifications missing: check credentials; demo mode logs expected without secrets.
+- Notifications missing: check credentials; demo mode logs expected without secrets. A failed send leaves a one-time alert active; look for `stays active after a failed send` in the worker log.
+- Alert saved but never fires: confirm `asset_id` points at `assets` (not a trending synthetic id) and that the price worker has written `current_price`. Quiet hours that cross midnight are inclusive on both sides.
 - Celery tasks stuck: check Redis connectivity and worker logs; verify broker URL.

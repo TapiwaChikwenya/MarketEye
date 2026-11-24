@@ -20,6 +20,20 @@ from app.services.notifications import notification_service
 logger = logging.getLogger(__name__)
 
 
+def in_quiet_hours(start, end, current) -> bool:
+    """Whether ``current`` falls inside a quiet window.
+
+    Same-day windows use start <= now <= end. Overnight windows (22:00–08:00,
+    the settings default) wrap past midnight: now >= start or now <= end.
+    A zero-length window (start == end) does not suppress alerts.
+    """
+    if start is None or end is None or start == end:
+        return False
+    if start < end:
+        return start <= current <= end
+    return current >= start or current <= end
+
+
 def _condition_text(alert: AlertRule) -> str:
     return {
         ConditionType.PRICE_ABOVE: f"above ${alert.threshold_value}",
@@ -248,10 +262,9 @@ async def _trigger_alert(alert: AlertRule, session):
 
     if user.quiet_hours_enabled and not alert.override_quiet_hours:
         current_time = datetime.utcnow().time()
-        if user.quiet_hours_start and user.quiet_hours_end:
-            if user.quiet_hours_start <= current_time <= user.quiet_hours_end:
-                logger.info(f"Alert {alert.id} suppressed due to quiet hours")
-                return
+        if in_quiet_hours(user.quiet_hours_start, user.quiet_hours_end, current_time):
+            logger.info(f"Alert {alert.id} suppressed due to quiet hours")
+            return
 
     message = alert.custom_message or _build_alert_message(alert, asset)
     email_ctx = build_alert_email_context(
@@ -264,7 +277,8 @@ async def _trigger_alert(alert: AlertRule, session):
 
     send_result = await _dispatch_alert_notifications(alert, user, asset, message)
 
-    if send_result.get("status") not in ("sent",):
+    delivered = send_result.get("status") == "sent"
+    if not delivered:
         logger.warning(
             "Alert %s notification issue for %s: %s",
             alert.id,
@@ -279,7 +293,7 @@ async def _trigger_alert(alert: AlertRule, session):
         event_type=EventType.ALERT_TRIGGERED,
         status=(
             NotificationStatus.SENT
-            if send_result.get("status") == "sent"
+            if delivered
             else NotificationStatus.FAILED
         ),
         subject=subject,
@@ -287,17 +301,21 @@ async def _trigger_alert(alert: AlertRule, session):
         details=send_result,
         provider=send_result.get("provider"),
         provider_message_id=send_result.get("message_id") or send_result.get("call_id"),
-        sent_at=datetime.utcnow() if send_result.get("status") == "sent" else None,
+        sent_at=datetime.utcnow() if delivered else None,
     )
     session.add(log_entry)
 
-    alert.last_triggered_at = datetime.utcnow()
-    alert.trigger_count += 1
-
-    if alert.repeat_behavior == RepeatBehavior.ONE_TIME:
-        alert.is_active = False
-
-    logger.info(f"Triggered alert {alert.id} for {asset.symbol}")
+    # A failed send must not consume a one-time alert. TradingView keeps a
+    # once-only alert armed when a schedule blocks delivery; the same rule
+    # applies when email or SMS does not actually go out.
+    if delivered:
+        alert.last_triggered_at = datetime.utcnow()
+        alert.trigger_count += 1
+        if alert.repeat_behavior == RepeatBehavior.ONE_TIME:
+            alert.is_active = False
+        logger.info(f"Triggered alert {alert.id} for {asset.symbol}")
+    else:
+        logger.info(f"Alert {alert.id} for {asset.symbol} stays active after a failed send")
 
 
 @celery_app.task(name="app.workers.alerts.cleanup_old_notifications")
