@@ -22,8 +22,15 @@ class AlertRuleBase(BaseModel):
 
 
 class AlertRuleCreate(AlertRuleBase):
-    """Schema for creating an alert rule."""
-    pass
+    """Schema for creating an alert rule.
+
+    ``symbol`` resolves a real ``assets`` row when the UI only has a ticker
+    (trending cards use synthetic ids that are not foreign keys).
+    """
+
+    symbol: Optional[str] = None
+    asset_type: Optional[str] = None
+    asset_name: Optional[str] = None
 
 
 class AlertRuleUpdate(BaseModel):

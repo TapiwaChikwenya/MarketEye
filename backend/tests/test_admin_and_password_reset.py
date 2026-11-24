@@ -6,7 +6,13 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.models.user import User
-from app.core.security import get_password_hash, create_password_reset_token, decode_password_reset_token
+from app.core.security import (
+    get_password_hash,
+    create_access_token,
+    create_password_reset_token,
+    decode_access_token,
+    decode_password_reset_token,
+)
 from app.db.base import AsyncSessionLocal
 
 
@@ -15,6 +21,18 @@ def test_password_reset_token_roundtrip():
     t = create_password_reset_token(uid)
     assert decode_password_reset_token(t) == uid
     assert decode_password_reset_token("not-a-jwt") is None
+
+
+def test_password_reset_token_is_not_an_api_credential():
+    uid = str(uuid.uuid4())
+    reset = create_password_reset_token(uid)
+    assert decode_access_token(reset) is None
+    access = create_access_token({"sub": uid})
+    payload = decode_access_token(access)
+    assert payload is not None
+    assert payload["sub"] == uid
+    assert payload["typ"] == "access"
+    assert decode_password_reset_token(access) is None
 
 
 async def _seed_superuser(email: str, password: str) -> None:

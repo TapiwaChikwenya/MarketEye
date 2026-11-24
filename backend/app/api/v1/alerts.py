@@ -3,14 +3,74 @@ Alert endpoints.
 """
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.deps import get_db, get_current_active_user
 from app.models.user import User
-from app.models.alert import AlertRule
+from app.models.alert import AlertRule, ConditionType
+from app.models.asset import Asset, AssetType
 from app.schemas.alert import AlertRuleCreate, AlertRuleUpdate, AlertRuleResponse
 
 router = APIRouter()
+
+# Volume, market-cap, and portfolio conditions are shown in older clients but
+# the worker only evaluates price and percent-change. Reject the rest at create
+# time so a rule cannot sit active and never fire.
+_IMPLEMENTED_CONDITIONS = {
+    ConditionType.PRICE_ABOVE,
+    ConditionType.PRICE_BELOW,
+    ConditionType.PERCENT_CHANGE_UP,
+    ConditionType.PERCENT_CHANGE_DOWN,
+}
+
+
+def _coerce_asset_type(raw: str | None) -> AssetType:
+    if not raw:
+        return AssetType.STOCK
+    key = raw.strip().upper().replace("-", "_").replace(" ", "_")
+    if key in AssetType.__members__:
+        return AssetType[key]
+    for member in AssetType:
+        if str(member.value).upper() == key:
+            return member
+    return AssetType.STOCK
+
+
+async def _resolve_asset_id(db: AsyncSession, alert_data: AlertRuleCreate):
+    """Return an assets.id, creating the row from a ticker when needed."""
+    if alert_data.asset_id is not None:
+        result = await db.execute(select(Asset).filter(Asset.id == alert_data.asset_id))
+        existing = result.scalar_one_or_none()
+        if existing is None:
+            raise HTTPException(status_code=404, detail="Asset not found")
+        return existing.id
+
+    symbol = (alert_data.symbol or "").strip().upper()
+    if not symbol:
+        raise HTTPException(status_code=400, detail="Choose an asset before creating an alert")
+
+    result = await db.execute(select(Asset).filter(Asset.symbol == symbol))
+    existing = result.scalar_one_or_none()
+    if existing is not None:
+        return existing.id
+
+    asset = Asset(
+        symbol=symbol,
+        name=(alert_data.asset_name or symbol).strip() or symbol,
+        asset_type=_coerce_asset_type(alert_data.asset_type),
+    )
+    db.add(asset)
+    try:
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
+        result = await db.execute(select(Asset).filter(Asset.symbol == symbol))
+        existing = result.scalar_one_or_none()
+        if existing is None:
+            raise
+        return existing.id
+    return asset.id
 
 
 @router.get("/", response_model=List[AlertRuleResponse])
@@ -35,8 +95,16 @@ async def create_alert(
     current_user: User = Depends(get_current_active_user)
 ):
     """Create a new alert rule."""
+    if alert_data.condition_type not in _IMPLEMENTED_CONDITIONS:
+        raise HTTPException(
+            status_code=400,
+            detail="That condition is not evaluated yet. Use a price or percent-change alert.",
+        )
+    asset_id = await _resolve_asset_id(db, alert_data)
+    payload = alert_data.dict(exclude={"symbol", "asset_type", "asset_name"})
+    payload["asset_id"] = asset_id
     alert = AlertRule(
-        **alert_data.dict(),
+        **payload,
         user_id=current_user.id
     )
     db.add(alert)

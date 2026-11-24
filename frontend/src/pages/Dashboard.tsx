@@ -22,7 +22,7 @@ import { api } from '@/lib/axios';
 import { authService } from '@/services/auth';
 import { userService, CONTACT_METHODS, TIME_ZONES, UpdateUserData } from '@/services/user';
 import { watchlistsService, WatchlistWithAssetsDetail } from '@/services/watchlists';
-import { alertsService, CONDITION_TYPE_LABELS, ConditionType, CreateAlertData, NotificationChannel, RepeatBehavior } from '@/services/alerts';
+import { alertsService, CONDITION_TYPE_LABELS, conditionLabel, SUPPORTED_CONDITION_TYPES, ConditionType, CreateAlertData, NotificationChannel, RepeatBehavior } from '@/services/alerts';
 import { trackedService, TrackedAsset, TrackAssetData } from '@/services/tracked';
 import { notificationsService } from '@/services/notifications';
 import { useNotifications, useNotificationState } from '@/hooks/useNotifications';
@@ -353,9 +353,15 @@ export function Dashboard() {
     }
 
     try {
+      const rawId = selectedAsset.id || '';
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId);
       const newAlert = await alertsService.createAlert({
         ...alertForm,
         name: `${selectedAsset.symbol} Alert`,
+        asset_id: isUuid ? rawId : undefined,
+        symbol: selectedAsset.symbol,
+        asset_type: selectedAsset.asset_type,
+        asset_name: selectedAsset.name,
       } as CreateAlertData);
       
       setAlerts([newAlert, ...alerts]);
@@ -1420,7 +1426,7 @@ export function Dashboard() {
                       </span>
                     </div>
                     <div className="text-sm text-muted-foreground mt-1">
-                      {CONDITION_TYPE_LABELS[alert.condition_type as ConditionType]} ${alert.threshold_value}
+                      {conditionLabel(alert.condition_type)} ${alert.threshold_value}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
                       Notify via {alert.notification_channel} • Triggered {alert.trigger_count} times
@@ -1554,8 +1560,8 @@ export function Dashboard() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(CONDITION_TYPE_LABELS).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    {SUPPORTED_CONDITION_TYPES.map((key) => (
+                      <SelectItem key={key} value={key}>{CONDITION_TYPE_LABELS[key]}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
