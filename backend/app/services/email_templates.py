@@ -136,6 +136,25 @@ def _condition_copy(alert: AlertRule, asset: Asset) -> tuple[str, str, str, str]
             "24h % threshold",
             f"{threshold}%",
         )
+    if alert.condition_type == ConditionType.VOLUME_ABOVE:
+        volume = asset.volume_24h or "—"
+        return (
+            f"{symbol} 24h volume exceeded your threshold",
+            f"{symbol} 24h volume is <strong>{volume}</strong>, at or above "
+            f"<strong>{alert.threshold_value}</strong>. Last price <strong>${price}</strong>. "
+            f"Confirm the move is not a one-print spike before acting.",
+            "24h volume",
+            str(alert.threshold_value),
+        )
+    if alert.condition_type == ConditionType.MARKET_CAP_ABOVE:
+        cap = asset.market_cap or "—"
+        return (
+            f"{symbol} market cap exceeded your threshold",
+            f"{symbol} market cap is <strong>{cap}</strong>, at or above "
+            f"<strong>{alert.threshold_value}</strong>. Last price <strong>${price}</strong>.",
+            "Market cap",
+            str(alert.threshold_value),
+        )
     return (
         f"{symbol} alert condition met",
         f"Your rule for {symbol} matched at <strong>${price}</strong>.",
@@ -223,6 +242,10 @@ def build_alert_email_context(
         ConditionType.PRICE_BELOW,
     ):
         subject_action = f"at {_format_price(asset.current_price)}"
+    elif alert.condition_type == ConditionType.VOLUME_ABOVE:
+        subject_action = f"volume {asset.volume_24h or 'n/a'}"
+    elif alert.condition_type == ConditionType.MARKET_CAP_ABOVE:
+        subject_action = f"market cap {asset.market_cap or 'n/a'}"
     else:
         subject_action = _format_signed_percent(asset.change_percent_24h) or "triggered"
 
