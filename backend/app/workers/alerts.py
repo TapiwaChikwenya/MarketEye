@@ -3,7 +3,7 @@ Celery tasks for alert evaluation and notifications.
 """
 import logging
 from datetime import datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from sqlalchemy import select, delete, func
 
@@ -34,12 +34,55 @@ def in_quiet_hours(start, end, current) -> bool:
     return current >= start or current <= end
 
 
+def _parse_decimal(raw: object) -> Decimal | None:
+    if raw is None:
+        return None
+    text = str(raw).strip().replace(",", "").replace("$", "")
+    if not text or text.lower() in {"none", "null", "nan", "n/a", "-"}:
+        return None
+    try:
+        return Decimal(text)
+    except InvalidOperation:
+        return None
+
+
+def condition_is_met(
+    condition: ConditionType,
+    *,
+    price: Decimal | None,
+    change_percent: Decimal | None,
+    volume: Decimal | None,
+    market_cap: Decimal | None,
+    threshold: Decimal,
+) -> bool:
+    """Price and percent use the last quote. Volume and market cap use the 24h figures already stored on the asset.
+
+    Portfolio conditions are still not evaluated: there is no single portfolio
+    mark the worker can compare without walking every holding.
+    """
+    if condition == ConditionType.PRICE_ABOVE:
+        return price is not None and price >= threshold
+    if condition == ConditionType.PRICE_BELOW:
+        return price is not None and price <= threshold
+    if condition == ConditionType.PERCENT_CHANGE_UP:
+        return change_percent is not None and change_percent >= threshold
+    if condition == ConditionType.PERCENT_CHANGE_DOWN:
+        return change_percent is not None and change_percent <= -abs(threshold)
+    if condition == ConditionType.VOLUME_ABOVE:
+        return volume is not None and volume >= threshold
+    if condition == ConditionType.MARKET_CAP_ABOVE:
+        return market_cap is not None and market_cap >= threshold
+    return False
+
+
 def _condition_text(alert: AlertRule) -> str:
     return {
         ConditionType.PRICE_ABOVE: f"above ${alert.threshold_value}",
         ConditionType.PRICE_BELOW: f"below ${alert.threshold_value}",
         ConditionType.PERCENT_CHANGE_UP: f"up {alert.threshold_value}%",
         ConditionType.PERCENT_CHANGE_DOWN: f"down {alert.threshold_value}%",
+        ConditionType.VOLUME_ABOVE: f"24h volume above {alert.threshold_value}",
+        ConditionType.MARKET_CAP_ABOVE: f"market cap above {alert.threshold_value}",
     }.get(alert.condition_type, "condition met")
 
 
@@ -218,26 +261,17 @@ async def _should_trigger_alert(alert: AlertRule, session) -> bool:
     result = await session.execute(select(Asset).filter(Asset.id == alert.asset_id))
     asset = result.scalar_one_or_none()
 
-    if not asset or not asset.current_price:
+    if not asset:
         return False
 
-    current_price = Decimal(asset.current_price)
-    threshold = alert.threshold_value
-
-    if alert.condition_type == ConditionType.PRICE_ABOVE:
-        return current_price >= threshold
-    elif alert.condition_type == ConditionType.PRICE_BELOW:
-        return current_price <= threshold
-    elif alert.condition_type == ConditionType.PERCENT_CHANGE_UP:
-        if asset.change_percent_24h:
-            change = Decimal(asset.change_percent_24h)
-            return change >= threshold
-    elif alert.condition_type == ConditionType.PERCENT_CHANGE_DOWN:
-        if asset.change_percent_24h:
-            change = Decimal(asset.change_percent_24h)
-            return change <= -threshold
-
-    return False
+    return condition_is_met(
+        alert.condition_type,
+        price=_parse_decimal(asset.current_price),
+        change_percent=_parse_decimal(asset.change_percent_24h),
+        volume=_parse_decimal(asset.volume_24h),
+        market_cap=_parse_decimal(asset.market_cap),
+        threshold=Decimal(alert.threshold_value),
+    )
 
 
 async def _trigger_alert(alert: AlertRule, session):

@@ -19,7 +19,18 @@ export const SUPPORTED_CONDITION_TYPES: ConditionType[] = [
   'PRICE_BELOW',
   'PERCENT_CHANGE_UP',
   'PERCENT_CHANGE_DOWN',
+  'VOLUME_ABOVE',
+  'MARKET_CAP_ABOVE',
 ];
+
+export function formatThreshold(condition: string | undefined, value: string | number | undefined): string {
+  const raw = value == null ? '' : String(value);
+  const key = (condition || '').toUpperCase();
+  if (key.includes('PERCENT') || key.includes('PORTFOLIO')) return `${raw}%`;
+  if (key === 'VOLUME_ABOVE') return raw;
+  if (key === 'MARKET_CAP_ABOVE' || key.startsWith('PRICE')) return `$${raw}`;
+  return raw;
+}
 
 export function conditionLabel(value: string | undefined): string {
   if (!value) return 'Alert';

@@ -22,7 +22,7 @@ import { api } from '@/lib/axios';
 import { authService } from '@/services/auth';
 import { userService, CONTACT_METHODS, TIME_ZONES, UpdateUserData } from '@/services/user';
 import { watchlistsService, WatchlistWithAssetsDetail } from '@/services/watchlists';
-import { alertsService, CONDITION_TYPE_LABELS, conditionLabel, SUPPORTED_CONDITION_TYPES, ConditionType, CreateAlertData, NotificationChannel, RepeatBehavior } from '@/services/alerts';
+import { alertsService, CONDITION_TYPE_LABELS, conditionLabel, formatThreshold, SUPPORTED_CONDITION_TYPES, ConditionType, CreateAlertData, NotificationChannel, RepeatBehavior } from '@/services/alerts';
 import { trackedService, TrackedAsset, TrackAssetData } from '@/services/tracked';
 import { notificationsService } from '@/services/notifications';
 import { useNotifications, useNotificationState } from '@/hooks/useNotifications';
@@ -1426,7 +1426,7 @@ export function Dashboard() {
                       </span>
                     </div>
                     <div className="text-sm text-muted-foreground mt-1">
-                      {conditionLabel(alert.condition_type)} ${alert.threshold_value}
+                      {conditionLabel(alert.condition_type)} {formatThreshold(alert.condition_type, alert.threshold_value)}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
                       Notify via {alert.notification_channel} • Triggered {alert.trigger_count} times
@@ -1573,7 +1573,15 @@ export function Dashboard() {
                   type="number"
                   value={alertForm.threshold_value || ''}
                   onChange={(e) => setAlertForm({ ...alertForm, threshold_value: e.target.value })}
-                  placeholder={alertForm.condition_type?.includes('PERCENT') ? 'e.g., 5' : 'e.g., 100.00'}
+                  placeholder={
+                    alertForm.condition_type === 'VOLUME_ABOVE'
+                      ? 'e.g., 1000000'
+                      : alertForm.condition_type === 'MARKET_CAP_ABOVE'
+                        ? 'e.g., 2000000000'
+                        : alertForm.condition_type?.includes('PERCENT')
+                          ? 'e.g., 5'
+                          : 'e.g., 100.00'
+                  }
                 />
               </div>
               

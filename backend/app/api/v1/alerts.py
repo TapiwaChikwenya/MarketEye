@@ -14,14 +14,15 @@ from app.schemas.alert import AlertRuleCreate, AlertRuleUpdate, AlertRuleRespons
 
 router = APIRouter()
 
-# Volume, market-cap, and portfolio conditions are shown in older clients but
-# the worker only evaluates price and percent-change. Reject the rest at create
-# time so a rule cannot sit active and never fire.
+# Portfolio conditions need a mark across every holding. Volume and market cap
+# use the 24h figures already stored on the asset.
 _IMPLEMENTED_CONDITIONS = {
     ConditionType.PRICE_ABOVE,
     ConditionType.PRICE_BELOW,
     ConditionType.PERCENT_CHANGE_UP,
     ConditionType.PERCENT_CHANGE_DOWN,
+    ConditionType.VOLUME_ABOVE,
+    ConditionType.MARKET_CAP_ABOVE,
 }
 
 
@@ -98,7 +99,7 @@ async def create_alert(
     if alert_data.condition_type not in _IMPLEMENTED_CONDITIONS:
         raise HTTPException(
             status_code=400,
-            detail="That condition is not evaluated yet. Use a price or percent-change alert.",
+            detail="That condition is not evaluated yet. Use a price, percent-change, volume, or market-cap alert.",
         )
     asset_id = await _resolve_asset_id(db, alert_data)
     payload = alert_data.dict(exclude={"symbol", "asset_type", "asset_name"})

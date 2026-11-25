@@ -1,10 +1,43 @@
 """
 Application configuration using Pydantic settings.
 """
+import json
 from typing import List, Optional
+
+from pydantic import model_validator, validator
 from pydantic_settings import BaseSettings
-from pydantic import AnyHttpUrl, validator
-import os
+
+# Dev compose used to default SECRET_KEY to this string. Production must not boot with it.
+_INSECURE_SECRET_KEYS = frozenset(
+    {
+        "super-secret-key-change-in-production",
+        "your-super-secret-key-change-this-in-production",
+        "your-secret-key-here",
+        "changeme",
+    }
+)
+
+
+def parse_cors_origins(value: object) -> object:
+    """Accept a JSON list or a comma-separated origin list.
+
+    docker-compose used to pass ``["http://localhost:5173","http://localhost:3000"]``.
+    Splitting that string on commas produced origins that still wore their
+    brackets and quotes, so the browser's Origin never matched.
+    """
+    if not isinstance(value, str):
+        return value
+    text = value.strip()
+    if not text:
+        return []
+    if text.startswith("["):
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            parsed = None
+        if isinstance(parsed, list):
+            return [str(item).strip() for item in parsed if str(item).strip()]
+    return [item.strip().strip('"').strip("'") for item in text.split(",") if item.strip()]
 
 
 class Settings(BaseSettings):
@@ -43,9 +76,15 @@ class Settings(BaseSettings):
 
     @validator("CORS_ORIGINS", pre=True)
     def assemble_cors_origins(cls, v):
-        if isinstance(v, str):
-            return [i.strip() for i in v.split(",")]
-        return v
+        return parse_cors_origins(v)
+
+    @model_validator(mode="after")
+    def reject_placeholder_secret_in_production(self):
+        if str(self.ENVIRONMENT).lower() == "production" and self.SECRET_KEY.strip() in _INSECURE_SECRET_KEYS:
+            raise ValueError(
+                "SECRET_KEY is a known placeholder. Set a unique secret before ENVIRONMENT=production."
+            )
+        return self
 
     # Twilio
     TWILIO_ACCOUNT_SID: Optional[str] = None
