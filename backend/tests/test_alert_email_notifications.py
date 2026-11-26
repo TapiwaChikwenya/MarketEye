@@ -15,6 +15,7 @@ from app.services.email_templates import (
     build_alert_email_html,
     build_alert_email_plain,
     build_demo_alert_email_context,
+    build_portfolio_alert_email_context,
 )
 from app.services.notifications import notification_service
 from app.workers import alerts as alerts_worker
@@ -64,6 +65,27 @@ def test_build_alert_email_context_personalizes_recipient_name():
     assert ctx.threshold_value == "$195"
     assert ctx.current_price == "$198.50"
     assert ctx.change_percent_24h == "+1.67%"
+
+
+def test_portfolio_alert_email_uses_a_dollar_level():
+    alert = _sample_alert()
+    alert.condition_type = ConditionType.PORTFOLIO_VALUE_DOWN
+    alert.threshold_value = Decimal("25000")
+    alert.name = "Book floor"
+    ctx = build_portfolio_alert_email_context(
+        user=_sample_user(name="Tapiwa"),
+        alert=alert,
+        current_value=Decimal("24120.50"),
+        frontend_base_url="http://localhost:5173",
+    )
+    assert ctx.symbol == "PORTFOLIO"
+    assert ctx.current_price == "$24,120.50"
+    assert ctx.threshold_value == "$25,000"
+    assert "below $25,000" in ctx.email_subject
+    assert "not a trade instruction" in ctx.condition_summary
+    plain = build_alert_email_plain(ctx)
+    assert "PORTFOLIO" in plain
+    assert "Tapiwa" in plain
 
 
 def test_build_alert_email_context_falls_back_to_email_local_part():

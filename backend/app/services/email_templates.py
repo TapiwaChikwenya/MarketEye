@@ -252,6 +252,58 @@ def build_alert_email_context(
     )
 
 
+def build_portfolio_alert_email_context(
+    *,
+    user: User,
+    alert: AlertRule,
+    current_value,
+    frontend_base_url: str,
+) -> AlertEmailContext:
+    """Email context for a dollar level on the virtual portfolio.
+
+    The level is the portfolio's marked value, not a percent change and not a
+    single ticker. Copy stays informational: MarketEye does not place trades.
+    """
+    triggered_at, tz_label = _triggered_timestamp(user)
+    base = frontend_base_url.rstrip("/")
+    level = _format_money(alert.threshold_value)
+    value = _format_price(current_value)
+    above = alert.condition_type == ConditionType.PORTFOLIO_VALUE_UP
+    direction = "at or above" if above else "at or below"
+    headline = (
+        "Portfolio value crossed above your level"
+        if above
+        else "Portfolio value fell to your level"
+    )
+    summary = (
+        f"Your virtual portfolio is now <strong>{value}</strong>, {direction} "
+        f"your level of <strong>${level}</strong>. "
+        "This uses holdings you entered. It is not a trade instruction."
+    )
+    subject_action = f"{'above' if above else 'below'} ${level}"
+    return AlertEmailContext(
+        recipient_name=_display_name(user),
+        symbol="PORTFOLIO",
+        asset_name="Virtual portfolio",
+        asset_type="Portfolio",
+        exchange=None,
+        condition_headline=headline,
+        condition_summary=summary,
+        threshold_label="Portfolio level",
+        threshold_value=f"${level}",
+        current_price=value,
+        change_24h=None,
+        change_percent_24h=None,
+        alert_name=alert.name,
+        repeat_behavior_label=_repeat_behavior_label(alert.repeat_behavior),
+        triggered_at_display=triggered_at,
+        timezone_label=tz_label,
+        dashboard_url=f"{base}/dashboard",
+        email_subject=f"Portfolio alert — {subject_action}",
+        action_note="Open the dashboard to review holdings. MarketEye does not place trades.",
+    )
+
+
 def build_alert_email_plain(ctx: AlertEmailContext) -> str:
     """Plain-text body for alert emails (inbox preview + non-HTML clients)."""
     lines = [

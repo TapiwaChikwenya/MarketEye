@@ -19,6 +19,8 @@ export const SUPPORTED_CONDITION_TYPES: ConditionType[] = [
   'PRICE_BELOW',
   'PERCENT_CHANGE_UP',
   'PERCENT_CHANGE_DOWN',
+  'PORTFOLIO_VALUE_UP',
+  'PORTFOLIO_VALUE_DOWN',
 ];
 
 export function conditionLabel(value: string | undefined): string {
@@ -104,7 +106,7 @@ export const CONDITION_TYPE_LABELS: Record<ConditionType, string> = {
   PERCENT_CHANGE_DOWN: 'Price decreases by %',
   VOLUME_ABOVE: 'Volume exceeds',
   MARKET_CAP_ABOVE: 'Market cap exceeds',
-  PORTFOLIO_VALUE_UP: 'Portfolio value increases by %',
-  PORTFOLIO_VALUE_DOWN: 'Portfolio value decreases by %',
+  PORTFOLIO_VALUE_UP: 'Portfolio value goes above',
+  PORTFOLIO_VALUE_DOWN: 'Portfolio value goes below',
 };
 

@@ -5,7 +5,7 @@
 ## 🚀 Features
 
 - 📊 Real-time market monitoring (Stocks, ETFs, Crypto, Mutual Funds)
-- 🔔 Smart alerts with customizable conditions (price, %, volume, portfolio-level)
+- 🔔 Smart alerts (price, percent change, and portfolio dollar levels)
 - 📱 Multi-channel notifications (SMS, Call, Push, Email)
 - 💼 Virtual portfolio tracking with P&L analytics
 - 🎨 Futuristic dark-themed UI with smooth animations
@@ -157,6 +157,7 @@ npm run dev
 
 - [API Documentation](http://localhost:8000/docs) - Interactive OpenAPI docs
 - [Architecture Guide](./docs/architecture.md) - system topology, flows, and operations
+- [Portfolio alerts](./docs/feature-portfolio-alerts.md) - dollar-level portfolio rules and quiet-hour clocks
 - [Public Market Data Feature](./docs/feature-public-market-data.md) - landing/demo data paths and safeguards
 
 ## 🔐 Environment Variables
@@ -290,10 +291,9 @@ The app features a cyberpunk-inspired dark theme with:
 
 ### Alert Conditions
 - Price above/below threshold
-- Percentage change (daily, hourly)
-- Volume spikes
-- Portfolio-level alerts
-- Custom indicator-based alerts
+- Percentage change (24h)
+- Portfolio value above/below a dollar level
+- Volume and market-cap rules are stored in the schema and rejected until a worker evaluates them
 
 ### Notification Channels
 - SMS via Twilio

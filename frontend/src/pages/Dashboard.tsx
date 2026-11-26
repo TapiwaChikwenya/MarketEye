@@ -353,15 +353,16 @@ export function Dashboard() {
     }
 
     try {
+      const portfolio = (alertForm.condition_type || '').startsWith('PORTFOLIO_');
       const rawId = selectedAsset.id || '';
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId);
       const newAlert = await alertsService.createAlert({
         ...alertForm,
-        name: `${selectedAsset.symbol} Alert`,
-        asset_id: isUuid ? rawId : undefined,
-        symbol: selectedAsset.symbol,
-        asset_type: selectedAsset.asset_type,
-        asset_name: selectedAsset.name,
+        name: portfolio ? 'Portfolio value alert' : `${selectedAsset.symbol} Alert`,
+        asset_id: !portfolio && isUuid ? rawId : undefined,
+        symbol: portfolio ? undefined : selectedAsset.symbol,
+        asset_type: portfolio ? undefined : selectedAsset.asset_type,
+        asset_name: portfolio ? undefined : selectedAsset.name,
       } as CreateAlertData);
       
       setAlerts([newAlert, ...alerts]);
@@ -1535,9 +1536,13 @@ export function Dashboard() {
       <Dialog open={showCreateAlert} onOpenChange={setShowCreateAlert}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create Price Alert</DialogTitle>
+            <DialogTitle>
+              {alertForm.condition_type?.startsWith('PORTFOLIO_') ? 'Create Portfolio Alert' : 'Create Price Alert'}
+            </DialogTitle>
             <DialogDescription>
-              Get notified when {selectedAsset?.symbol} reaches your target
+              {alertForm.condition_type?.startsWith('PORTFOLIO_')
+                ? 'Get notified when your virtual portfolio crosses a dollar level'
+                : `Get notified when ${selectedAsset?.symbol} reaches your target`}
             </DialogDescription>
           </DialogHeader>
           
@@ -1573,7 +1578,13 @@ export function Dashboard() {
                   type="number"
                   value={alertForm.threshold_value || ''}
                   onChange={(e) => setAlertForm({ ...alertForm, threshold_value: e.target.value })}
-                  placeholder={alertForm.condition_type?.includes('PERCENT') ? 'e.g., 5' : 'e.g., 100.00'}
+                  placeholder={
+                    alertForm.condition_type?.includes('PERCENT')
+                      ? 'e.g., 5'
+                      : alertForm.condition_type?.startsWith('PORTFOLIO_')
+                        ? 'e.g., 10000'
+                        : 'e.g., 100.00'
+                  }
                 />
               </div>
               
