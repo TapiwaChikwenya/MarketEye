@@ -2,8 +2,9 @@
 Celery tasks for alert evaluation and notifications.
 """
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta, timezone
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import select, delete, func
 
@@ -12,9 +13,13 @@ from app.core.config import settings
 from app.db.base import AsyncSessionLocal
 from app.models.alert import AlertRule, ConditionType, NotificationChannel, RepeatBehavior
 from app.models.asset import Asset
+from app.models.portfolio import Portfolio, PortfolioHolding
 from app.models.user import User
 from app.models.notification import NotificationLog, EventType, NotificationStatus
-from app.services.email_templates import build_alert_email_context
+from app.services.email_templates import (
+    build_alert_email_context,
+    build_portfolio_alert_email_context,
+)
 from app.services.notifications import notification_service
 
 logger = logging.getLogger(__name__)
@@ -34,12 +39,73 @@ def in_quiet_hours(start, end, current) -> bool:
     return current >= start or current <= end
 
 
+_PORTFOLIO_CONDITIONS = {
+    ConditionType.PORTFOLIO_VALUE_UP,
+    ConditionType.PORTFOLIO_VALUE_DOWN,
+}
+_PORTFOLIO_MAX_AGE = timedelta(minutes=30)
+
+
+def clock_in_zone(tz_name: str | None, now: datetime | None = None) -> time:
+    """Wall-clock time in the user's zone. Invalid zones fall back to UTC.
+
+    Quiet-hour settings are the hours the user picked next to their timezone.
+    Comparing those hours to ``datetime.utcnow()`` keeps a Chicago 22:00–08:00
+    window quiet in the middle of the local afternoon.
+    """
+    moment = now or datetime.now(timezone.utc)
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    name = (tz_name or "UTC").strip() or "UTC"
+    try:
+        local = moment.astimezone(ZoneInfo(name))
+    except Exception:
+        local = moment.astimezone(timezone.utc)
+    return local.time().replace(tzinfo=None)
+
+
+def portfolio_level_met(
+    *,
+    current_value,
+    priced_holdings: int,
+    calculated_at: datetime | None,
+    now: datetime,
+    condition: ConditionType,
+    threshold,
+) -> bool:
+    """Dollar level on a book that has a recent price.
+
+    An empty or unpriced portfolio is not "below" a level: quotes may simply
+    be missing. A calculation older than 30 minutes is skipped so a stalled
+    portfolio job cannot fire on a stale total.
+    """
+    if priced_holdings <= 0 or current_value is None or calculated_at is None:
+        return False
+    if condition not in _PORTFOLIO_CONDITIONS:
+        return False
+    last = calculated_at
+    moment = now
+    if last.tzinfo is not None:
+        last = last.replace(tzinfo=None)
+    if moment.tzinfo is not None:
+        moment = moment.replace(tzinfo=None)
+    if moment - last > _PORTFOLIO_MAX_AGE:
+        return False
+    value = Decimal(current_value)
+    level = Decimal(threshold)
+    if condition == ConditionType.PORTFOLIO_VALUE_UP:
+        return value >= level
+    return value <= level
+
+
 def _condition_text(alert: AlertRule) -> str:
     return {
         ConditionType.PRICE_ABOVE: f"above ${alert.threshold_value}",
         ConditionType.PRICE_BELOW: f"below ${alert.threshold_value}",
         ConditionType.PERCENT_CHANGE_UP: f"up {alert.threshold_value}%",
         ConditionType.PERCENT_CHANGE_DOWN: f"down {alert.threshold_value}%",
+        ConditionType.PORTFOLIO_VALUE_UP: f"above ${alert.threshold_value}",
+        ConditionType.PORTFOLIO_VALUE_DOWN: f"below ${alert.threshold_value}",
     }.get(alert.condition_type, "condition met")
 
 
@@ -83,17 +149,25 @@ def _repeat_behavior_blocks_retrigger(alert: AlertRule) -> bool:
     return False
 
 
-async def _send_push_notification(user: User, asset: Asset, alert: AlertRule, message: str) -> dict:
+async def _send_push_notification(
+    user: User,
+    asset: Asset | None,
+    alert: AlertRule,
+    message: str,
+    portfolio_value=None,
+) -> dict:
     from app.services.sse import publish_alert_sync
 
     condition_text = _condition_text(alert)
+    symbol = asset.symbol if asset is not None else "PORTFOLIO"
+    price = asset.current_price if asset is not None else portfolio_value
     payload = {
         "user_id": str(user.id),
-        "type": "price_alert",
-        "title": f"MarketEye Alert: {asset.symbol}",
+        "type": "price_alert" if asset is not None else "portfolio_alert",
+        "title": f"MarketEye Alert: {symbol}",
         "body": message,
-        "symbol": asset.symbol,
-        "price": str(asset.current_price),
+        "symbol": symbol,
+        "price": str(price),
         "condition": f"is {condition_text}",
         "timestamp": datetime.utcnow().isoformat(),
     }
@@ -107,19 +181,35 @@ async def _send_push_notification(user: User, asset: Asset, alert: AlertRule, me
 
 
 async def _send_email_notification(
-    user: User, asset: Asset, alert: AlertRule, message: str
+    user: User,
+    asset: Asset | None,
+    alert: AlertRule,
+    message: str,
+    portfolio_value=None,
 ) -> dict:
-    ctx = build_alert_email_context(
-        user=user,
-        asset=asset,
-        alert=alert,
-        frontend_base_url=settings.FRONTEND_BASE_URL,
-    )
+    if alert.condition_type in _PORTFOLIO_CONDITIONS:
+        ctx = build_portfolio_alert_email_context(
+            user=user,
+            alert=alert,
+            current_value=portfolio_value,
+            frontend_base_url=settings.FRONTEND_BASE_URL,
+        )
+    else:
+        ctx = build_alert_email_context(
+            user=user,
+            asset=asset,
+            alert=alert,
+            frontend_base_url=settings.FRONTEND_BASE_URL,
+        )
     return await notification_service.send_alert_email(to=user.email, ctx=ctx)
 
 
 async def _dispatch_alert_notifications(
-    alert: AlertRule, user: User, asset: Asset, message: str
+    alert: AlertRule,
+    user: User,
+    asset: Asset | None,
+    message: str,
+    portfolio_value=None,
 ) -> dict:
     """
     Send notifications for the alert's channel(s).
@@ -137,12 +227,12 @@ async def _dispatch_alert_notifications(
             }
         else:
             results["email"] = await _send_email_notification(
-                user, asset, alert, message
+                user, asset, alert, message, portfolio_value=portfolio_value
             )
 
     if channel in (NotificationChannel.PUSH, NotificationChannel.MULTI):
         results["push"] = await _send_push_notification(
-            user, asset, alert, message
+            user, asset, alert, message, portfolio_value=portfolio_value
         )
 
     if channel in (NotificationChannel.SMS, NotificationChannel.CALL):
@@ -157,7 +247,7 @@ async def _dispatch_alert_notifications(
                 channel=channel.value,
                 to=recipient,
                 message=message,
-                subject=f"MarketEye Alert: {asset.symbol}",
+                subject=f"MarketEye Alert: {asset.symbol if asset is not None else 'PORTFOLIO'}",
             )
 
     if not results:
@@ -210,8 +300,41 @@ async def _evaluate_all_alerts():
             await session.rollback()
 
 
+async def _portfolio_snapshot(alert: AlertRule, session):
+    """Return (portfolio, priced holding count) or None when the user has no book."""
+    result = await session.execute(select(Portfolio).filter(Portfolio.user_id == alert.user_id))
+    portfolio = result.scalar_one_or_none()
+    if portfolio is None:
+        return None
+    holdings = (
+        await session.execute(
+            select(PortfolioHolding).filter(PortfolioHolding.portfolio_id == portfolio.id)
+        )
+    ).scalars().all()
+    priced = sum(
+        1
+        for holding in holdings
+        if holding.current_price is not None and holding.current_value is not None
+    )
+    return portfolio, priced
+
+
 async def _should_trigger_alert(alert: AlertRule, session) -> bool:
     """Determine if an alert should be triggered."""
+    if alert.condition_type in _PORTFOLIO_CONDITIONS:
+        snap = await _portfolio_snapshot(alert, session)
+        if snap is None:
+            return False
+        portfolio, priced = snap
+        return portfolio_level_met(
+            current_value=portfolio.current_value,
+            priced_holdings=priced,
+            calculated_at=portfolio.last_calculated_at,
+            now=datetime.utcnow(),
+            condition=alert.condition_type,
+            threshold=alert.threshold_value,
+        )
+
     if not alert.asset_id:
         return False
 
@@ -244,11 +367,7 @@ async def _trigger_alert(alert: AlertRule, session):
     """Trigger an alert and send notification."""
     result_obj = await session.execute(select(User).filter(User.id == alert.user_id))
     user = result_obj.scalar_one_or_none()
-
-    result_obj = await session.execute(select(Asset).filter(Asset.id == alert.asset_id))
-    asset = result_obj.scalar_one_or_none()
-
-    if not user or not asset:
+    if not user:
         return
 
     if await _user_over_daily_notification_limit(user.id, session):
@@ -261,35 +380,71 @@ async def _trigger_alert(alert: AlertRule, session):
         return
 
     if user.quiet_hours_enabled and not alert.override_quiet_hours:
-        current_time = datetime.utcnow().time()
+        current_time = clock_in_zone(user.time_zone)
         if in_quiet_hours(user.quiet_hours_start, user.quiet_hours_end, current_time):
             logger.info(f"Alert {alert.id} suppressed due to quiet hours")
             return
 
-    message = alert.custom_message or _build_alert_message(alert, asset)
-    email_ctx = build_alert_email_context(
-        user=user,
-        asset=asset,
-        alert=alert,
-        frontend_base_url=settings.FRONTEND_BASE_URL,
-    )
+    portfolio_value = None
+    if alert.condition_type in _PORTFOLIO_CONDITIONS:
+        snap = await _portfolio_snapshot(alert, session)
+        if snap is None:
+            return
+        portfolio, priced = snap
+        if not portfolio_level_met(
+            current_value=portfolio.current_value,
+            priced_holdings=priced,
+            calculated_at=portfolio.last_calculated_at,
+            now=datetime.utcnow(),
+            condition=alert.condition_type,
+            threshold=alert.threshold_value,
+        ):
+            return
+        asset = None
+        portfolio_value = portfolio.current_value
+        label = "PORTFOLIO"
+        message = alert.custom_message or (
+            f"MarketEye Alert: portfolio value is ${portfolio_value} "
+            f"({_condition_text(alert)})."
+        )
+        email_ctx = build_portfolio_alert_email_context(
+            user=user,
+            alert=alert,
+            current_value=portfolio_value,
+            frontend_base_url=settings.FRONTEND_BASE_URL,
+        )
+    else:
+        result_obj = await session.execute(select(Asset).filter(Asset.id == alert.asset_id))
+        asset = result_obj.scalar_one_or_none()
+        if not asset:
+            return
+        label = asset.symbol
+        message = alert.custom_message or _build_alert_message(alert, asset)
+        email_ctx = build_alert_email_context(
+            user=user,
+            asset=asset,
+            alert=alert,
+            frontend_base_url=settings.FRONTEND_BASE_URL,
+        )
     subject = email_ctx.email_subject
 
-    send_result = await _dispatch_alert_notifications(alert, user, asset, message)
+    send_result = await _dispatch_alert_notifications(
+        alert, user, asset, message, portfolio_value=portfolio_value
+    )
 
     delivered = send_result.get("status") == "sent"
     if not delivered:
         logger.warning(
             "Alert %s notification issue for %s: %s",
             alert.id,
-            asset.symbol,
+            label,
             send_result,
         )
 
     log_entry = NotificationLog(
         user_id=user.id,
         alert_id=alert.id,
-        asset_id=asset.id,
+        asset_id=asset.id if asset is not None else None,
         event_type=EventType.ALERT_TRIGGERED,
         status=(
             NotificationStatus.SENT
@@ -313,9 +468,9 @@ async def _trigger_alert(alert: AlertRule, session):
         alert.trigger_count += 1
         if alert.repeat_behavior == RepeatBehavior.ONE_TIME:
             alert.is_active = False
-        logger.info(f"Triggered alert {alert.id} for {asset.symbol}")
+        logger.info(f"Triggered alert {alert.id} for {label}")
     else:
-        logger.info(f"Alert {alert.id} for {asset.symbol} stays active after a failed send")
+        logger.info(f"Alert {alert.id} for {label} stays active after a failed send")
 
 
 @celery_app.task(name="app.workers.alerts.cleanup_old_notifications")

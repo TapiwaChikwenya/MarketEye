@@ -55,10 +55,10 @@ flowchart LR
 - **Redis-Backed Shared Cache**: Cache is stored in Redis under `marketeye:price:{type}:{SYMBOL}` keys, shared across the backend and all Celery workers. Falls back to an in-memory dict if Redis is unavailable.
 
 ## Functional Flow (Typical Alert Creation & Trigger)
-1. User authenticates and creates an alert via `/api/v1/alerts`. The UI sends a real asset UUID when it has one. Trending cards only have a ticker, so the API resolves or creates an `assets` row from `symbol` before insert. Volume, market-cap, and portfolio conditions are rejected with 400 until the worker evaluates them.
+1. User authenticates and creates an alert via `/api/v1/alerts`. The UI sends a real asset UUID when it has one. Trending cards only have a ticker, so the API resolves or creates an `assets` row from `symbol` before insert. Portfolio rules store no asset id: the threshold is a dollar level on the virtual book. Volume and market-cap conditions are still rejected with 400.
 2. Alert stored in PostgreSQL; any cache warmed in Redis if enabled.
-3. Celery alert worker runs on schedule, fetches latest prices via `ProviderRegistry` for rows in `assets`.
-4. Worker evaluates price and percent-change conditions. Quiet hours use the user's clock and wrap overnight (the settings default is 22:00–08:00).
+3. Celery alert worker runs on schedule, fetches latest prices via `ProviderRegistry` for rows in `assets`. A separate job refreshes portfolio marks every 5 minutes.
+4. Worker evaluates price, percent-change, and portfolio dollar levels. Quiet hours use `users.time_zone` (invalid zones fall back to UTC) and wrap overnight (the settings default is 22:00–08:00). A portfolio rule fires only when at least one holding has a price and the book was calculated in the last 30 minutes.
 5. When the condition matches, `NotificationService` sends SMS/call/email (or demo-mode logs). A one-time alert is deactivated only after `status=sent`. A failed send is logged and the rule stays active for the next pass.
 6. Frontend polls or refreshes data to reflect alert status.
 

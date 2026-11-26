@@ -17,11 +17,19 @@ router = APIRouter()
 # Volume, market-cap, and portfolio conditions are shown in older clients but
 # the worker only evaluates price and percent-change. Reject the rest at create
 # time so a rule cannot sit active and never fire.
+_PORTFOLIO_CONDITIONS = {
+    ConditionType.PORTFOLIO_VALUE_UP,
+    ConditionType.PORTFOLIO_VALUE_DOWN,
+}
+
+# Volume and market-cap rules are still rejected. Portfolio rules are dollar
+# levels on the virtual book, not a percent move.
 _IMPLEMENTED_CONDITIONS = {
     ConditionType.PRICE_ABOVE,
     ConditionType.PRICE_BELOW,
     ConditionType.PERCENT_CHANGE_UP,
     ConditionType.PERCENT_CHANGE_DOWN,
+    *_PORTFOLIO_CONDITIONS,
 }
 
 
@@ -98,11 +106,18 @@ async def create_alert(
     if alert_data.condition_type not in _IMPLEMENTED_CONDITIONS:
         raise HTTPException(
             status_code=400,
-            detail="That condition is not evaluated yet. Use a price or percent-change alert.",
+            detail="That condition is not evaluated yet. Use a price, percent-change, or portfolio-value alert.",
         )
-    asset_id = await _resolve_asset_id(db, alert_data)
     payload = alert_data.dict(exclude={"symbol", "asset_type", "asset_name"})
-    payload["asset_id"] = asset_id
+    if alert_data.condition_type in _PORTFOLIO_CONDITIONS:
+        if alert_data.threshold_value is None or alert_data.threshold_value < 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Portfolio alerts need a dollar level of zero or more.",
+            )
+        payload["asset_id"] = None
+    else:
+        payload["asset_id"] = await _resolve_asset_id(db, alert_data)
     alert = AlertRule(
         **payload,
         user_id=current_user.id
