@@ -58,7 +58,7 @@ flowchart LR
 1. User authenticates and creates an alert via `/api/v1/alerts`. The UI sends a real asset UUID when it has one. Trending cards only have a ticker, so the API resolves or creates an `assets` row from `symbol` before insert. Volume, market-cap, and portfolio conditions are rejected with 400 until the worker evaluates them.
 2. Alert stored in PostgreSQL; any cache warmed in Redis if enabled.
 3. Celery alert worker runs on schedule, fetches latest prices via `ProviderRegistry` for rows in `assets`.
-4. Worker evaluates price and percent-change conditions. Quiet hours use the user's clock and wrap overnight (the settings default is 22:00–08:00).
+4. Worker evaluates price and percent-change conditions against a quote whose `assets.last_updated` is at most 30 minutes old. A missing or older stamp is skipped, so a dead provider cannot fire on yesterday's close. Quiet hours use the user's clock and wrap overnight (the settings default is 22:00–08:00).
 5. When the condition matches, `NotificationService` sends SMS/call/email (or demo-mode logs). A one-time alert is deactivated only after `status=sent`. A failed send is logged and the rule stays active for the next pass.
 6. Frontend polls or refreshes data to reflect alert status.
 
@@ -104,6 +104,7 @@ Password-reset JWTs are signed with the same key as access tokens and carry `typ
 
 ## Deployment
 - Recommended: `docker-compose up -d` then `docker-compose exec backend alembic upgrade head`.
+- `backend/alembic/versions` contains a baseline revision (`0001_baseline`) so that command can finish. It stamps `alembic_version` and does not create tables. Startup still runs `create_all`. Rollback is `alembic downgrade base`, which removes the stamp only.
 - Backend exposed on `:8000`; frontend on `:5173`; ensure Redis/Postgres reachable.
 - Set `FINNHUB_API_KEY` for reliable stock data; without it, yfinance is the only stock provider.
 
@@ -112,5 +113,6 @@ Password-reset JWTs are signed with the same key as access tokens and carry `typ
 - Market data empty: check circuit breaker logs; verify `FINNHUB_API_KEY` is set; review provider rate limits.
 - Only crypto showing: yfinance rate-limited and no Finnhub key set; add `FINNHUB_API_KEY`.
 - Notifications missing: check credentials; demo mode logs expected without secrets. A failed send leaves a one-time alert active; look for `stays active after a failed send` in the worker log.
-- Alert saved but never fires: confirm `asset_id` points at `assets` (not a trending synthetic id) and that the price worker has written `current_price`. Quiet hours that cross midnight are inclusive on both sides.
+- Alert saved but never fires: confirm `asset_id` points at `assets` (not a trending synthetic id) and that the price worker has written `current_price` in the last 30 minutes (`assets.last_updated`). A stuck quote is skipped on purpose. Quiet hours that cross midnight are inclusive on both sides.
+- Backend container exits before uvicorn: `alembic upgrade head` needs `backend/alembic/versions`. The baseline revision is empty DDL.
 - Celery tasks stuck: check Redis connectivity and worker logs; verify broker URL.

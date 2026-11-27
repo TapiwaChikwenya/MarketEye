@@ -41,9 +41,10 @@ env/
 *.swo
 *~
 
-# Alembic
-alembic/versions/*.py
-!alembic/versions/__init__.py
+# Alembic bytecode only. Revision scripts must be committed: production
+# runs `alembic upgrade head` before the API starts, and a missing
+# versions/*.py file makes that command exit.
+alembic/versions/*.pyc
 
 # Database
 *.db

@@ -2,7 +2,7 @@
 Celery tasks for alert evaluation and notifications.
 """
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from sqlalchemy import select, delete, func
@@ -18,6 +18,33 @@ from app.services.email_templates import build_alert_email_context
 from app.services.notifications import notification_service
 
 logger = logging.getLogger(__name__)
+
+# Prices refresh every minute. A quote older than this is the last good print,
+# not a live cross. Alert products in 2026 skip that case so a dead provider
+# does not page you with yesterday's close. Matches the cache stale TTL.
+QUOTE_MAX_AGE = timedelta(minutes=30)
+
+
+def quote_is_fresh(last_updated, now=None) -> bool:
+    """True when the stored quote was written within QUOTE_MAX_AGE.
+
+    Missing timestamps are stale. Naive datetimes are treated as UTC because
+    the price writers use ``datetime.utcnow()`` and ``datetime.now(UTC)``.
+    A stamp a couple of minutes in the future is clock skew, not a fresh quote
+    from next week.
+    """
+    if last_updated is None:
+        return False
+    moment = now or datetime.now(timezone.utc)
+    stamp = last_updated
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=timezone.utc)
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    age = moment - stamp
+    if age < timedelta(0):
+        return age >= timedelta(minutes=-2)
+    return age <= QUOTE_MAX_AGE
 
 
 def in_quiet_hours(start, end, current) -> bool:
@@ -210,15 +237,14 @@ async def _evaluate_all_alerts():
             await session.rollback()
 
 
-async def _should_trigger_alert(alert: AlertRule, session) -> bool:
-    """Determine if an alert should be triggered."""
-    if not alert.asset_id:
+def price_alert_should_fire(alert: AlertRule, asset: Asset | None, now=None) -> bool:
+    """Price and percent rules against a quote that is still fresh.
+
+    Volume, market-cap, and portfolio rules are not decided here.
+    """
+    if asset is None or not asset.current_price:
         return False
-
-    result = await session.execute(select(Asset).filter(Asset.id == alert.asset_id))
-    asset = result.scalar_one_or_none()
-
-    if not asset or not asset.current_price:
+    if not quote_is_fresh(asset.last_updated, now=now):
         return False
 
     current_price = Decimal(asset.current_price)
@@ -226,9 +252,9 @@ async def _should_trigger_alert(alert: AlertRule, session) -> bool:
 
     if alert.condition_type == ConditionType.PRICE_ABOVE:
         return current_price >= threshold
-    elif alert.condition_type == ConditionType.PRICE_BELOW:
+    if alert.condition_type == ConditionType.PRICE_BELOW:
         return current_price <= threshold
-    elif alert.condition_type == ConditionType.PERCENT_CHANGE_UP:
+    if alert.condition_type == ConditionType.PERCENT_CHANGE_UP:
         if asset.change_percent_24h:
             change = Decimal(asset.change_percent_24h)
             return change >= threshold
@@ -236,8 +262,28 @@ async def _should_trigger_alert(alert: AlertRule, session) -> bool:
         if asset.change_percent_24h:
             change = Decimal(asset.change_percent_24h)
             return change <= -threshold
-
     return False
+
+
+async def _should_trigger_alert(alert: AlertRule, session) -> bool:
+    """Determine if an alert should be triggered."""
+    if not alert.asset_id:
+        return False
+
+    result = await session.execute(select(Asset).filter(Asset.id == alert.asset_id))
+    asset = result.scalar_one_or_none()
+    if (
+        asset is not None
+        and asset.current_price
+        and not quote_is_fresh(asset.last_updated)
+    ):
+        logger.info(
+            "Alert %s skipped: %s quote is older than %s minutes",
+            alert.id,
+            asset.symbol,
+            int(QUOTE_MAX_AGE.total_seconds() // 60),
+        )
+    return price_alert_should_fire(alert, asset)
 
 
 async def _trigger_alert(alert: AlertRule, session):
